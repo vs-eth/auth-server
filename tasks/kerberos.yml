@@ -38,7 +38,7 @@
 
   - name: Figure out whether realm has been created yet
     shell: |
-      ldapsearch -Z -x -D "cn=admin,{{ auth_ldap_domain_ldap }}" -w "{{ auth_ldap_admin_pwd_clear }}" -b "{{ auth_ldap_domain_ldap }}" cn=Kerberos | grep "dn: cn" | grep Kerberos
+      ldapsearch -Z -x -D "cn=admin,{{ auth_ldap_domain_ldap }}" -w '{{ auth_ldap_admin_pwd_clear }}' -b "{{ auth_ldap_domain_ldap }}" cn=Kerberos | grep "dn: cn" | grep Kerberos
     register: krbrealmcheck
     failed_when: False
     changed_when: False

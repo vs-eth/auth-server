@@ -2,7 +2,7 @@
     kdc_ports = 749,88
 
 [dbmodules]
-    {{ auth_kerberos_realm }}-LDAP = {
+    {{ auth_ldap_domain|upper }}-LDAP = {
         db_library = kldap
         db_module_dir = /usr/lib/x86_64-linux-gnu/krb5/plugins/kdb
         ldap_kdc_dn = "cn=krbbind,{{ auth_ldap_domain_ldap }}"
@@ -16,7 +16,7 @@
     }
 
 [realms]
-    {{ auth_kerberos_realm }} = {
+    {{ auth_ldap_domain|upper }} = {
         kdc_port = 88
         kdc_tcp_port = 88
         kadmind_port = 749
@@ -24,7 +24,7 @@
         max_renewable_life = 3d 0h 0m 0s
         master_key_type = aes256-cts-hmac-sha384-192
         supported_enctypes = {{ auth_kerberos_enctypes }}
-        database_module = {{ auth_kerberos_realm }}-LDAP
+        database_module = {{ auth_ldap_domain|upper }}-LDAP
         restrict_anonymous_to_tgt = true
         des_crc_session_supported = false
         default_principal_flags = +preauth
