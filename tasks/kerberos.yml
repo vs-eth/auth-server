@@ -1,0 +1,160 @@
+---
+- block:
+  - name: Configure kerberos client settings
+    become: True
+    template:
+      src: krb5.conf.j2
+      dest: /etc/krb5.conf
+      owner: root
+      group: root
+      mode: 0644
+    notify: restart kdc
+
+  - name: Store kerberos LDAP credentials
+    become: True
+    expect:
+      command: "kdb5_ldap_util stashsrvpw -f /etc/krb5kdc/ldap.cred cn=krbbind,{{ auth_ldap_domain_ldap }}"
+      creates: /etc/krb5kdc/ldap.cred
+      responses:
+        (cn\=krbbind): "{{ auth_kerberos_ldap_password }}"
+
+  - name: Fix kerberos LDAP credentials permissions
+    become: True
+    file:
+      path: /etc/krb5kdc/ldap.cred
+      owner: root
+      group: root
+      mode: 0640
+
+  - name: Configure KDC
+    become: True
+    template:
+      src: kdc.conf.j2
+      dest: /etc/krb5kdc/kdc.conf
+      owner: root
+      group: root
+      mode: 0640
+    notify: restart kdc
+
+  - name: Figure out whether realm has been created yet
+    shell: |
+      ldapsearch -Z -x -D "cn=admin,{{ auth_ldap_domain_ldap }}" -w "{{ auth_ldap_admin_pwd_clear }}" -b "{{ auth_ldap_domain_ldap }}" cn=Kerberos | grep "dn: cn" | grep Kerberos
+    register: krbrealmcheck
+    failed_when: False
+    changed_when: False
+
+  - name: Create Kerberos realm
+    run_once: true
+    when: krbrealmcheck.rc == 1
+    expect:
+      command: kdb5_ldap_util -D "cn=admin,{{ auth_ldap_domain_ldap }}" create -subtrees "ou=Users,{{ auth_ldap_domain_ldap }}" -r "{{ auth_ldap_domain|upper }}" -s
+      responses:
+        (cn\=admin): "{{ auth_ldap_admin_pwd_clear }}"
+        (database master key): "{{ auth_kerberos_database_master_key }}"
+
+  - name: Fetch master database secret to control node
+    when: krbrealmcheck.rc == 1
+    become: True
+    fetch:
+      src: "/etc/krb5kdc/.k5.{{ auth_ldap_domain|upper }}"
+      dest: "fetch/krb5secret"
+      flat: yes
+      validate_checksum: yes
+      fail_on_missing: no
+    failed_when: False
+
+  - name: Upload master database secret to kerberos nodes
+    when: krbrealmcheck.rc == 1
+    become: True
+    copy:
+      src: "fetch/krb5secret"
+      dest: "/etc/krb5kdc/.k5.{{ auth_ldap_domain|upper }}"
+      owner: root
+      group: root
+      mode: 0600
+    notify: restart kdc
+
+  - meta: flush_handlers
+
+  - name: Create default ticket policy
+    when: krbrealmcheck.rc == 1
+    run_once: True
+    command: kadmin.local addpol -minlength 8 -minclasses 3 -maxfailure 3 -failurecountinterval "60 sec" -lockoutduration "600 sec" default
+
+  - name: Create anonymous prinicpal for PKINIT/FAST
+    when: krbrealmcheck.rc == 1
+    run_once: True
+    command: kadmin.local -q 'addprinc -randkey WELLKNOWN/ANONYMOUS'
+
+  - name: Create principals for openldap
+    become: True
+    run_once: True
+    command: kadmin.local addprinc -randkey "ldap/{{ hostvars[item]['ansible_fqdn'] }}@NJSM.DE"
+    failed_when: False
+    changed_when: False
+    with_items: "{{ groups['core'] }}"
+
+  - name: Create keytabs for openldap
+    become: True
+    when: item == inventory_hostname
+    command: kadmin.local ktadd -k /etc/ldap/krb.keytab "ldap/{{ hostvars[item]['ansible_fqdn'] }}@NJSM.DE"
+    args:
+      creates: /etc/ldap/krb.keytab
+    with_items: "{{ groups['core'] }}"
+    notify: restart slapd
+
+  - name: Allow openldap to access it's keytab
+    become: True
+    file:
+      path: /etc/ldap/krb.keytab
+      owner: root
+      group: openldap
+      mode: 0640
+
+  - name: Create host principals
+    become: True
+    run_once: True
+    command: kadmin.local addprinc -randkey "host/{{ hostvars[item]['ansible_fqdn'] }}@NJSM.DE"
+    failed_when: False
+    changed_when: False
+    with_items: "{{ groups['core'] }}"
+
+  - name: Create host keytabs
+    become: True
+    when: item == inventory_hostname
+    command: kadmin.local ktadd "host/{{ hostvars[item]['ansible_fqdn'] }}@NJSM.DE"
+    args:
+      creates: /etc/krb5.keytab
+    with_items: "{{ groups['core'] }}"
+    notify: restart saslauthd
+
+  - name: Allow openldap to access saslauthd's socket
+    become: True
+    user:
+      append: yes
+      name: openldap
+      groups:
+        - sasl
+
+  - name: Configure saslauthd
+    become: True
+    template:
+      src: saslauthd.j2
+      dest: /etc/default/saslauthd
+      owner: root
+      group: root
+      mode: 0644
+    notify: restart saslauthd
+
+  - name: Enable SASL for openldap
+    become: True
+    template:
+      src: sasl-slapd.conf.j2
+      dest: /etc/ldap/sasl2/slapd.conf
+      owner: root
+      group: openldap
+      mode: 0640
+    notify: restart slapd
+
+  tags:
+    - kerberos

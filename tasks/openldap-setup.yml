@@ -1,0 +1,380 @@
+---
+  - name: Configure ldap config admin password
+    become: True
+    ldap_attr:
+      dn: "olcDatabase={0}config,cn=config"
+      name: "{{ item.key }}"
+      values: "{{ item.value }}"
+      state: "exact"
+      server_uri: "ldapi:///"
+    with_dict:
+      olcRootDN: 'cn=admin,cn=config'
+      olcRootPW: '{{ auth_ldap_admin_pwd }}'
+    no_log: True
+
+  - name: Configure ldap admin password
+    become: True
+    ldap_attr:
+      dn: "olcDatabase={1}mdb,cn=config"
+      name: "{{ item.key }}"
+      values: "{{ item.value }}"
+      state: "exact"
+      server_uri: "ldapi:///"
+    with_dict:
+      olcRootDN: 'cn=admin,{{ auth_ldap_domain_ldap }}'
+      olcRootPW: '{{ auth_ldap_admin_pwd }}'
+    no_log: True
+
+  - name: Check whether Kerberos schema has been imported
+    shell: |
+      ldapsearch -Z -x -D cn=admin,cn=config -w '{{ auth_ldap_admin_pwd_clear }}' -b cn=schema,cn=config | grep "dn: cn" | grep kerberos
+    register: krbcheck
+    failed_when: False
+    changed_when: False
+
+  - name: Create ansible schema dir
+    become: True
+    file:
+      path: /etc/ldap/ansible
+      owner: root
+      group: root
+      mode: 0640
+      state: directory
+
+  - name: Upload kerberos schema
+    become: True
+    copy:
+      src: kerberos.ldif
+      dest: /etc/ldap/ansible/kerberos.ldif
+      owner: root
+      group: root
+      mode: 0640
+
+  - name: Import Kerberos schema
+    when: krbcheck.rc == 1
+    become: True
+    shell: /usr/bin/ldapadd -Y EXTERNAL -H ldapi:/// < /etc/ldap/ansible/kerberos.ldif
+
+  - name: Check whether SSL has been configured
+    become: True
+    shell: cat /etc/ldap/slapd.d/cn\=config/olcDatabase\=\{1\}mdb.ldif | grep olcSecurity
+    register: sslcheck
+    failed_when: False
+    changed_when: False
+
+  - name: Set URL to SSL
+    when: sslcheck.rc == 0
+    set_fact:
+      auth_ldap_ansible_url: ldaps://127.0.0.1
+
+  - name: Set URL to non-SSL
+    when: sslcheck.rc != 0
+    set_fact:
+      auth_ldap_ansible_url: ldap://127.0.0.1
+
+  - name: Configure LDAP containers
+    ldap_entry:
+      dn: "ou={{ item }},{{ auth_ldap_domain_ldap }}"
+      objectClass: organizationalUnit
+      bind_dn: "cn=admin,{{ auth_ldap_domain_ldap }}"
+      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      server_uri: "{{ auth_ldap_ansible_url }}"
+    with_items:
+      - Users
+      - Groups
+
+  - name: Create LDAP system users
+    ldap_entry:
+      dn: "cn={{ item.name }},{{ auth_ldap_domain_ldap }}"
+      server_uri: "{{ auth_ldap_ansible_url }}"
+      objectClass:
+        - posixAccount
+        - top
+        - inetOrgPerson
+      bind_dn: "cn=admin,{{ auth_ldap_domain_ldap }}"
+      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      state: present
+      attributes:
+        uid: "{{ item.id }}"
+        uidNumber: "{{ item.uid }}"
+        gidNumber: "{{ item.gid }}"
+        userPassword: "{{ item.initialPassword }}"
+        homeDirectory: "/dev/null"
+        sn: "{{ item.name }}"
+        givenName: "Serviceaccount"
+        mail: "root@{{ auth_ldap_domain }}"
+    with_items:
+      - "{{ auth_ldap_system_users }}"
+
+  - name: Create LDAP groups
+    ldap_entry:
+      dn: "cn={{ item }},ou=Groups,{{ auth_ldap_domain_ldap }}"
+      objectClass: groupOfNames
+      bind_dn: "cn=admin,{{ auth_ldap_domain_ldap }}"
+      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      server_uri: "{{ auth_ldap_ansible_url }}"
+      attributes:
+        member: "cn=krbbind,{{ auth_ldap_domain_ldap }}"
+    with_items:
+      - "sys_ldap_readers"
+
+  - name: Configure LDAP ACLs (Data DB)
+    ldap_attr:
+      dn: "olcDatabase={1}mdb,cn=config"
+      name: "olcAccess"
+      bind_dn: 'cn=admin,cn=config'
+      bind_pw: '{{ auth_ldap_admin_pwd_clear }}'
+      server_uri: "{{ auth_ldap_ansible_url }}"
+      values:
+        - >-
+          {0}to attrs=shadowLastChange,userPKCS12,krbPrincipalKey,krbExtraData
+          by dn.exact="cn=krbbind,{{ auth_ldap_domain_ldap }}" write
+          by * none
+        - >-
+          {1}to attrs=userPassword
+          by dn.exact="cn=krbbind,{{ auth_ldap_domain_ldap }}" write
+          by * auth
+        - >-
+          {2}to dn.regex="^uid=([^,]+),ou=Users,{{ auth_ldap_domain_ldap }}$"
+          by dn.exact,expand="uid=$1,ou=Users,{{ auth_ldap_domain_ldap }}" read
+          by dn.exact,expand="uid=$1,cn=gssapi,cn=auth" read
+          by dn.exact="cn=krbbind,{{ auth_ldap_domain_ldap }}" write
+          by dn.exact="cn=sys_ldap_readers,ou=Groups,{{ auth_ldap_domain_ldap }}" read
+          by * none
+        - >-
+          {3}to dn.subtree="ou=Users,{{ auth_ldap_domain_ldap }}"
+          by dn.exact="cn=krbbind,{{ auth_ldap_domain_ldap }}" write
+          by dn.exact="cn=sys_ldap_readers,ou=Groups,{{ auth_ldap_domain_ldap }}" read
+          by * none
+        - >-
+          {4}to dn.subtree="cn=Kerberos,{{ auth_ldap_domain_ldap }}"
+          by dn.exact="cn=krbbind,{{ auth_ldap_domain_ldap }}" manage
+          by * none
+        - >-
+          {5}to *
+          by dn.exact="cn=sys_ldap_readers,ou=Groups,{{ auth_ldap_domain_ldap }}" read
+          by * none
+      state: exact
+
+  - name: Configure LDAP ACLs (Config DB)
+    ldap_attr:
+      dn: "olcDatabase={0}config,cn=config"
+      name: "olcAccess"
+      server_uri: "ldapi:///"
+      values:
+        - >-
+          {0}to *
+          by dn.exact="cn=admin,{{ auth_ldap_domain_ldap }}" manage
+          by dn.exact=gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth manage
+          by * break
+      state: exact
+
+  - name: Configure LDAP SASL mapping
+    ldap_attr:
+      dn: "cn=config"
+      name: "olcAuthzRegexp"
+      bind_dn: '{{ "cn=admin,cn=config" }}'
+      bind_pw: '{{ auth_ldap_admin_pwd_clear }}'
+      server_uri: "{{ auth_ldap_ansible_url }}"
+      values:
+        - "{0}uid=([^,]*),cn={{ auth_ldap_domain }},cn=gssapi,cn=auth uid=$1,ou=Users,{{ auth_ldap_domain_ldap }}"
+        - "{1}uid=([^,]*),cn=gss-spnego,cn=auth uid=$1,ou=Users,{{ auth_ldap_domain_ldap }}"
+      state: "exact"
+
+  - name: Configure global LDAP settings
+    ldap_attr:
+      dn: "cn=config"
+      name: "{{ item.key }}"
+      bind_dn: '{{ "cn=admin,cn=config" }}'
+      bind_pw: '{{ auth_ldap_admin_pwd_clear }}'
+      server_uri: "{{ auth_ldap_ansible_url }}"
+      values: "{{ item.value }}"
+      state: "exact"
+    with_dict:
+      olcLogLevel: "256"
+
+  - name: Configure LDAP indices
+    ldap_attr:
+      bind_dn: '{{ "cn=admin,cn=config" }}'
+      bind_pw: '{{ auth_ldap_admin_pwd_clear }}'
+      server_uri: "{{ auth_ldap_ansible_url }}"
+      dn: olcDatabase={1}mdb,cn=config
+      name: olcDbIndex
+      values: "{{ item }}"
+    with_items:
+      - objectClass eq
+      - cn,uid eq
+      - entryUUID eq
+      - krbPrincipalName eq
+
+  - name: Fix LDAP certificate ownership
+    become: True
+    when: auth_ldap_have_tls
+    file:
+      path: "{{ item }}"
+      owner: openldap
+      group: root
+      mode: 0640
+    with_items:
+      - "{{ auth_ldap_ssl_cert_path }}"
+      - "{{ auth_ldap_ssl_key_path }}"
+
+  - name: Fix LDAP CA ownership
+    become: True
+    when: auth_ldap_have_tls
+    file:
+      path: "{{ item }}"
+      owner: openldap
+      group: root
+      mode: 0644
+    with_items:
+      - "{{ auth_ldap_ssl_ca_path }}"
+
+  # Don't use ansible's ldap_attr for this due to bug 25665
+  # (https://github.com/ansible/ansible/issues/25665)
+  - name: Configure TLS
+    become: True
+    when: auth_ldap_have_tls
+    shell:
+      cmd: |
+        cat <<EOF | /usr/bin/ldapmodify -Q -H ldapi:/// -Y EXTERNAL
+        dn: cn=config
+        changetype: modify
+        replace: olcTLSCertificateFile
+        olcTLSCertificateFile: "{{ auth_ldap_ssl_cert_path }}"
+        -
+        replace: olcTLSCertificateKeyFile
+        olcTLSCertificateKeyFile: "{{ auth_ldap_ssl_key_path }}"
+        EOF
+    changed_when: False
+
+  - name: Configure slapd listen settings
+    become: True
+    when: auth_ldap_have_tls
+    template:
+      src: slapd.j2
+      dest: /etc/default/slapd
+      owner: root
+      group: root
+      mode: 0644
+    notify: restart slapd
+
+  - name: Configure TLS CA in ldap.conf
+    become: True
+    when: auth_ldap_have_tls
+    template:
+      src: ldap.conf.j2
+      dest: /etc/ldap/ldap.conf
+      owner: root
+      group: root
+      mode: 0644
+
+  - name: Configure LDAP SSL support
+    when: auth_ldap_have_tls
+    ldap_attr:
+      dn: "cn=config"
+      name: "{{ item.key }}"
+      values: "{{ item.value }}"
+      state: "exact"
+      bind_dn: "cn=admin,cn=config"
+      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      server_uri: "{{ auth_ldap_ansible_url }}"
+    with_dict:
+      olcTLSCACertificateFile: "{{ auth_ldap_ssl_ca_path }}"
+
+  - name: Enforce TLS for main database
+    when: auth_ldap_have_tls
+    ldap_attr:
+      dn: "olcDatabase={1}mdb,cn=config"
+      name: "{{ item.key }}"
+      values: "{{ item.value }}"
+      state: "exact"
+      bind_dn: "cn=admin,cn=config"
+      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      server_uri: "{{ auth_ldap_ansible_url }}"
+    with_dict:
+      olcSecurity: tls=1
+
+  # Make sure that TLS is applied
+  - meta: flush_handlers
+
+  - name: Check whether mirror mode is already enabled
+    shell: 'ldapsearch -Y EXTERNAL -H ldapi:// -b olcDatabase={0}config,cn=config olcSyncRepl | grep "olcSyncrepl: "'
+    changed_when: False
+    failed_when: False
+    register: mmcheck
+
+  # multivalued, ansible cannot do this at the moment
+  - name: Generate server ID config
+    when: mmcheck.rc == 1
+    become: True
+    template:
+      src: doSync.ldif.j2
+      dest: /etc/ldap/ansible/doSync.ldif
+      owner: root
+      group: root
+      mode: 0640
+
+  - name: Replace server IDs
+    when: mmcheck.rc == 1
+    become: True
+    shell:
+      cmd: /usr/bin/ldapmodify -Q -H ldapi:/// -Y EXTERNAL -D "cn=admin,{{ auth_ldap_domain_ldap }}" -w "{{ auth_ldap_admin_pwd_clear }}" < /etc/ldap/ansible/doSync.ldif
+
+  - name: Enable syncrepl provider
+    when: mmcheck.rc == 1
+    become: True
+    ldap_attr:
+      dn: "cn=module{0},cn=config"
+      name: "{{ item.key }}"
+      values: "{{ item.value }}"
+      state: "present"
+      server_uri: "ldapi:///"
+    with_dict:
+      olcModuleLoad: "{1}syncprov"
+
+  # Temporal config. These options need to be set *in the same transaction* or
+  # everything blows up (all servers end up read only). Ansible cannot do this
+  # at the moment.
+  - name: Generate mirror-mode config
+    when: mmcheck.rc == 1
+    become: True
+    template:
+      src: doSyncReal.ldif.j2
+      dest: "/etc/ldap/ansible/doSync{{ item.key }}.ldif"
+      owner: root
+      group: root
+      mode: 0640
+    with_dict:
+      Config:
+        dn: "olcDatabase={0}config,cn=config"
+        base: cn=config
+      Data:
+        dn: "olcDatabase={1}mdb,cn=config"
+        base: "{{ auth_ldap_domain_ldap }}"
+
+  - name: Enable mirror mode
+    when: mmcheck.rc == 1
+    become: True
+    shell:
+      cmd: "/usr/bin/ldapmodify -Q -H ldapi:/// -Y EXTERNAL < /etc/ldap/ansible/doSync{{ item }}.ldif"
+    with_items:
+      - Config
+      - Data
+
+  - name: Add syncrepl overlays
+    when: mmcheck.rc == 1
+    become: True
+    ldap_entry:
+      dn: "{{ item }}"
+      server_uri: "ldapi:///"
+      state: present
+      objectClass:
+        - olcOverlayConfig
+        - olcSyncProvConfig
+      attributes:
+        olcOverlay: syncprov
+    with_items:
+      - "olcOverlay=syncprov,olcDatabase={0}config,cn=config"
+      - "olcOverlay=syncprov,olcDatabase={1}mdb,cn=config"
+    notify: restart slapd

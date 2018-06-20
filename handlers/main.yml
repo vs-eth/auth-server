@@ -1,0 +1,17 @@
+---
+  - name: restart slapd
+    become: True
+    service: name=slapd state=restarted enabled=yes
+
+  - name: restart kdc
+    become: True
+    service: name=krb5-kdc state=restarted enabled=yes
+    notify: restart kadmind
+
+  - name: restart kadmind
+    become: True
+    service: name=krb5-admin-server state=restarted enabled=yes
+
+  - name: restart saslauthd
+    become: True
+    service: name=saslauthd state=restarted enabled=yes

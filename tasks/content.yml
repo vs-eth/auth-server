@@ -1,0 +1,29 @@
+---
+  - name: Create LDAP user
+    run_once: true
+    ldap_entry:
+      dn: "uid={{ item.id }},ou=Users,{{ auth_ldap_domain_ldap }}"
+      server_uri: "{{ auth_ldap_ansible_url }}"
+      objectClass:
+        - posixAccount
+        - top
+        - inetOrgPerson
+      bind_dn: "cn=admin,{{ auth_ldap_domain_ldap }}"
+      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      state: present
+      attributes:
+        uid: "{{ item.id }}"
+        uidNumber: "{{ item.uid }}"
+        gidNumber: "{{ item.gid }}"
+        homeDirectory: "/home/{{ item.id }}"
+        sn: "{{ item.sn }}"
+        givenName: "{{ item.givenName }}"
+        mail: "{{ item.mail }}"
+        userPassword: "{SASL}{{ item.id }}@{{ auth_ldap_domain|upper }}"
+        cn: "{{ item.name }}"
+    register: userchanged
+
+  - name: Kerberize LDAP user
+    run_once: true
+    when: userchanged.changed
+    command: kadmin.local addprinc -randkey -x dn="uid={{ item.id }},ou=Users,{{ auth_ldap_domain_ldap }}" +requires_preauth "{{ item.id }}"

@@ -1,0 +1,6 @@
+dn: cn=config
+changetype: modify
+replace: olcServerID
+{% for item in groups['core'] %}
+olcServerID: {{ hostvars[item]['auth_ldap_server_id'] }} ldaps://{{ hostvars[item]['ansible_default_ipv4']['address'] }}
+{% endfor %}

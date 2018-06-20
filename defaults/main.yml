@@ -1,0 +1,27 @@
+---
+# Change these:
+auth_ldap_domain: None
+auth_ldap_domain_ldap: None
+# You'll want to generate this with `/usr/sbin/slappasswd -h {SSHA}`
+auth_ldap_admin_pwd: None
+auth_ldap_admin_pwd_clear: None
+auth_kerberos_ldap_password_ldap: False
+auth_kerberos_ldap_password: False
+auth_kerberos_database_master_key: False
+
+# TLS for openLDAP
+auth_ldap_have_tls: True
+auth_ldap_ssl_cert_path: /etc/ldap/server.pem
+auth_ldap_ssl_key_path: /etc/ldap/server.key
+auth_ldap_ssl_ca_path: /etc/ldap/ca.pem
+
+# Enctypes for recent kerberos
+auth_kerberos_enctypes: "aes256-cts-hmac-sha384-192 aes128-cts-hmac-sha256-128"
+
+# System user, do not touch!
+auth_ldap_system_users:
+  - name: krbbind
+    id: krbbind
+    uid: 10001
+    gid: 1000
+    initialPassword: "{{ auth_kerberos_ldap_password_ldap }}"
