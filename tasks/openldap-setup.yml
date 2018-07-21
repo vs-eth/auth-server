@@ -106,17 +106,26 @@
     with_items:
       - "{{ auth_ldap_system_users }}"
 
-  - name: Create LDAP groups
+  - name: Create LDAP reader group
     ldap_entry:
-      dn: "cn={{ item }},ou=Groups,{{ auth_ldap_domain_ldap }}"
+      dn: "cn=sys_ldap_readers,ou=Groups,{{ auth_ldap_domain_ldap }}"
       objectClass: groupOfNames
       bind_dn: "cn=admin,{{ auth_ldap_domain_ldap }}"
       bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
       server_uri: "{{ auth_ldap_ansible_url }}"
       attributes:
-        member: "cn=krbbind,{{ auth_ldap_domain_ldap }}"
-    with_items:
-      - "sys_ldap_readers"
+        member: "{{ item }}"
+    with_items: "{{ auth_ldap_allow_read|first }}"
+
+  - name: Add LDAP reader group members
+    ldap_attr:
+      dn: "cn=sys_ldap_readers,ou=Groups,{{ auth_ldap_domain_ldap }}"
+      bind_dn: "cn=admin,{{ auth_ldap_domain_ldap }}"
+      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      server_uri: "{{ auth_ldap_ansible_url }}"
+      name: member
+      values: "{{ auth_ldap_allow_read }}"
+      state: exact
 
   - name: Configure LDAP ACLs (Data DB)
     ldap_attr:

@@ -21,6 +21,10 @@ auth_kerberos_enctypes: "aes256-cts-hmac-sha384-192 aes128-cts-hmac-sha256-128"
 # Users to create
 auth_ldap_users: []
 
+# Users to grant 'read' permission on Users subtree
+auth_ldap_allow_read:
+  - "cn=krbbind,{{ auth_ldap_domain_ldap }}"
+
 # Permissions
 auth_ldap_data_permissions:
   - >-
@@ -36,12 +40,12 @@ auth_ldap_data_permissions:
     by dn.exact,expand="uid=$1,ou=Users,{{ auth_ldap_domain_ldap }}" read
     by dn.exact,expand="uid=$1,cn=gssapi,cn=auth" read
     by dn.exact="cn=krbbind,{{ auth_ldap_domain_ldap }}" write
-    by dn.exact="cn=sys_ldap_readers,ou=Groups,{{ auth_ldap_domain_ldap }}" read
+    by group.exact="cn=sys_ldap_readers,ou=Groups,{{ auth_ldap_domain_ldap }}" read
     by * none
   - >-
     {3}to dn.subtree="ou=Users,{{ auth_ldap_domain_ldap }}"
     by dn.exact="cn=krbbind,{{ auth_ldap_domain_ldap }}" write
-    by dn.exact="cn=sys_ldap_readers,ou=Groups,{{ auth_ldap_domain_ldap }}" read
+    by group.exact="cn=sys_ldap_readers,ou=Groups,{{ auth_ldap_domain_ldap }}" read
     by * none
   - >-
     {4}to dn.subtree="cn=Kerberos,{{ auth_ldap_domain_ldap }}"
@@ -53,7 +57,7 @@ auth_ldap_data_permissions:
     by * none
   - >-
     {6}to *
-    by dn.exact="cn=sys_ldap_readers,ou=Groups,{{ auth_ldap_domain_ldap }}" read
+    by group.exact="cn=sys_ldap_readers,ou=Groups,{{ auth_ldap_domain_ldap }}" read
     by * none
 
 auth_ldap_config_permissions:
