@@ -21,7 +21,7 @@ SLAPD_PIDFILE=
 # sockets.
 # Example usage:
 # SLAPD_SERVICES="ldap://127.0.0.1:389/ ldaps:/// ldapi:///"
-SLAPD_SERVICES="{% for item in ansible_all_ipv4_addresses %}ldaps://{{item}} {% endfor %}ldap://127.0.0.1:389/ ldaps://127.0.0.1 ldapi:///"
+SLAPD_SERVICES="{% for item in ansible_all_ipv4_addresses %}ldaps://{{item}} {% endfor %}ldap://127.0.0.1:389/ ldaps://127.0.0.1 ldaps://127.0.1.1 ldapi:///"
 
 # If SLAPD_NO_START is set, the init script will not start or restart
 # slapd (but stop will still work).  Uncomment this if you are
