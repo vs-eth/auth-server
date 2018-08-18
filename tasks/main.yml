@@ -37,6 +37,7 @@
       - krb5-pkinit
       - python-pexpect
       - sasl2-bin
+      - libsasl2-modules-gssapi-mit
     tags:
       - ldap
       - kerberos
