@@ -62,3 +62,5 @@
     tags:
       - ldap
       - kerberos
+
+  - meta: flush_handlers
