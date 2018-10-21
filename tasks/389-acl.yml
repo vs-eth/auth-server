@@ -1,0 +1,59 @@
+---
+  - name: Create LDAP system users
+    run_once: true
+    ldap_entry:
+      dn: "cn={{ item.name }},{{ auth_ldap_domain_ldap }}"
+      server_uri: "{{ auth_ldap_ansible_url }}"
+      objectClass:
+        - posixAccount
+        - top
+        - inetOrgPerson
+      bind_dn: "cn=Directory Manager"
+      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      state: present
+      attributes:
+        uid: "{{ item.id }}"
+        uidNumber: "{{ item.uid }}"
+        gidNumber: "{{ item.gid }}"
+        userPassword: "{{ item.initialPassword }}"
+        homeDirectory: "/dev/null"
+        sn: "{{ item.name }}"
+        givenName: "Serviceaccount"
+        mail: "root@{{ auth_ldap_domain }}"
+    with_items:
+      - "{{ auth_ldap_system_users }}"
+
+  - name: Create LDAP reader group
+    run_once: true
+    ldap_entry:
+      dn: "cn=sys_ldap_readers,ou=Groups,{{ auth_ldap_domain_ldap }}"
+      objectClass: groupOfNames
+      bind_dn: "cn=Directory Manager"
+      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      server_uri: "{{ auth_ldap_ansible_url }}"
+      attributes:
+        member: "{{ item }}"
+    with_items: "{{ auth_ldap_allow_read|first }}"
+
+  - name: Add LDAP reader group members
+    run_once: true
+    ldap_attr:
+      dn: "cn=sys_ldap_readers,ou=Groups,{{ auth_ldap_domain_ldap }}"
+      bind_dn: "cn=Directory Manager"
+      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      server_uri: "{{ auth_ldap_ansible_url }}"
+      name: member
+      values: "{{ auth_ldap_allow_read }}"
+      state: exact
+
+  - name: Configure LDAP ACLs
+    ldap_attr:
+      dn: "{{ item.target }}"
+      bind_dn: "cn=Directory Manager"
+      bind_pw: '{{ auth_ldap_admin_pwd_clear }}'
+      server_uri: "{{ auth_ldap_ansible_url }}"
+      values: "{{ item.acls }}"
+      name: aci
+      state: exact
+    when: item.target != "cn=Kerberos,{{ auth_ldap_domain_ldap }}"
+    with_items: "{{ auth_ldap_permissions }}"

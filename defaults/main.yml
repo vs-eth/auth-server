@@ -2,12 +2,17 @@
 # Change these:
 auth_ldap_domain: None
 auth_ldap_domain_ldap: None
+auth_ldap_domain_suffix: None
 # You'll want to generate this with `/usr/sbin/slappasswd -h {SSHA}`
 auth_ldap_admin_pwd: None
 auth_ldap_admin_pwd_clear: None
+auth_ldap_sync_pwd_clear: None
+auth_ldap_init_source: False
 auth_kerberos_ldap_password_ldap: False
 auth_kerberos_ldap_password: False
 auth_kerberos_database_master_key: False
+
+auth_ldap_group: core
 
 # TLS for openLDAP
 auth_ldap_have_tls: True

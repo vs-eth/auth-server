@@ -8,7 +8,7 @@
         - posixAccount
         - top
         - inetOrgPerson
-      bind_dn: "cn=admin,{{ auth_ldap_domain_ldap }}"
+      bind_dn: "cn=Directory Manager"
       bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
       state: present
       attributes:
@@ -26,4 +26,5 @@
   - name: Kerberize LDAP user
     run_once: true
     when: userchanged.changed
+    become: True
     command: kadmin.local addprinc -randkey -x dn="uid={{ item.id }},ou=Users,{{ auth_ldap_domain_ldap }}" +requires_preauth "{{ item.id }}"

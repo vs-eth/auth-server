@@ -1,0 +1,23 @@
+{% for item in groups[auth_ldap_group] %}
+{% if hostvars[item]['ansible_fqdn'] != ansible_fqdn %}
+# LDAP to {{ item }}
+frontend {{ item }}-ldap-front
+        bind 127.0.0.1:{{ 60389 + hostvars[item]['auth_ldap_server_id'] }}
+        mode tcp
+        default_backend {{ item }}-ldap-back
+
+backend {{ item }}-ldap-back
+        mode tcp
+        server remote {{ item }}:60389 ssl crt /etc/dirsrv/client.pem ca-file /etc/dirsrv/ca.pem verify required check check-ssl
+
+{% endif %}
+{% endfor %}
+
+frontend ldap-local-front
+        bind :::60389 v4v6 ssl crt /etc/dirsrv/server.pem ca-file /etc/dirsrv/ca.pem crl-file /etc/dirsrv/crl.pem verify required
+        mode tcp
+        default_backend ldap-local-back
+
+backend ldap-local-back
+        mode tcp
+        server local 127.0.0.1:389

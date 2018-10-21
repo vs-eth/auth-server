@@ -1,0 +1,97 @@
+---
+  - name: Create replication user
+    ldap_entry:
+      dn: "cn=replication manager,cn=config"
+      server_uri: "{{ auth_ldap_ansible_url }}"
+      objectClass:
+        - top
+        - person
+        - inetorgperson
+      bind_dn: "cn=Directory Manager"
+      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      state: present
+      attributes:
+        cn: replication manager
+        sn: RM
+        userPassword: "{{ auth_ldap_sync_pwd_clear }}"
+        passwordExpirationTime: 20990119031407Z
+
+  - name: Enable changelog
+    ldap_entry:
+      dn: "cn=changelog5,cn=config"
+      server_uri: "{{ auth_ldap_ansible_url }}"
+      objectClass:
+        - top
+        - extensibleObject
+      bind_dn: "cn=Directory Manager"
+      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      state: present
+      attributes:
+        cn: changelog5
+        nsslapd-changelogdir: "/var/lib/dirsrv/slapd-{{ auth_ldap_shortname }}/changelogdb"
+
+  - name: Create supplier replicas
+    ldap_entry:
+      dn: "cn=replica,cn=\"{{ auth_ldap_domain_ldap }}\",cn=mapping tree,cn=config"
+      server_uri: "{{ auth_ldap_ansible_url }}"
+      objectClass:
+        - top
+        - extensibleObject
+        - nsds5replica
+      bind_dn: "cn=Directory Manager"
+      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      state: present
+      attributes:
+        cn: replica
+        nsds5replicaroot: "{{ auth_ldap_domain_ldap }}"
+        nsds5replicaid: "{{ auth_ldap_server_id }}"
+        nsds5replicatype: 3
+        nsds5flags: 1
+        nsds5ReplicaPurgeDelay: 604800
+        nsds5ReplicaBindDN: "cn=replication manager,cn=config"
+
+  - name: Create replication agreements
+    ldap_entry:
+      dn: "cn={{ item[0] }}-to-{{ item[1] }},cn=replica,cn=\"{{ auth_ldap_domain_ldap }}\",cn=mapping tree,cn=config"
+      server_uri: "{{ auth_ldap_ansible_url }}"
+      objectClass:
+        - top
+        - nsds5replicationagreement
+      bind_dn: "cn=Directory Manager"
+      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      state: present
+      attributes:
+        cn: "{{ item[0] }}-to-{{ item[1] }}"
+        nsds5replicahost: "127.0.0.1"
+        nsds5replicaport: "{{ 60389 + hostvars[item[0]]['auth_ldap_server_id'] }}"
+        nsds5ReplicaBindDN: "cn=replication manager,cn=config"
+        nsds5replicabindmethod: SIMPLE
+        nsds5replicaroot: "{{ auth_ldap_domain_ldap }}"
+        description: "agreement to replicate {{ item[1] }} to {{ item[0] }}"
+        nsds5replicacredentials: "{{ auth_ldap_sync_pwd_clear }}"
+        #        nsds5BeginReplicaRefresh: start
+    when: (item[0] != item[1]) and (item[1] == ansible_fqdn)
+    with_cartesian:
+      - "{{ groups[auth_ldap_group] }}"
+      - "{{ groups[auth_ldap_group] }}"
+    register: repchanged
+
+  - name: Create reinit script
+    when: ansible_fqdn == auth_ldap_init_source
+    become: True
+    template:
+      src: 389-reinit.ldif.j2
+      dest: /etc/ldap/ansible/reinit.ldif
+      owner: root
+      group: root
+      mode: 0640
+
+  - name: Reinit replication peers from master
+    when: ansible_fqdn == auth_ldap_init_source and repchanged.changed
+    become: True
+    shell: /usr/bin/ldapmodify -x -D 'cn=Directory Manager' -w '{{ auth_ldap_admin_pwd_clear }}' < /etc/ldap/ansible/reinit.ldif
+
+  - name: Give replication some time
+    when: repchanged.changed
+    pause:
+      seconds: 5

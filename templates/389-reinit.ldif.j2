@@ -1,0 +1,11 @@
+{% for item in groups[auth_ldap_group] %}
+{% if hostvars[item]['ansible_fqdn'] != ansible_fqdn %}
+dn: cn={{ hostvars[item]['ansible_fqdn'] }}-to-{{ ansible_fqdn }},cn=replica,cn="{{ auth_ldap_domain_ldap }}",cn=mapping tree,cn=config
+changetype: modify
+replace: nsds5beginreplicarefresh
+nsds5beginreplicarefresh: start
+{% if not loop.last %}
+
+{% endif %}
+{% endif %}
+{% endfor %}

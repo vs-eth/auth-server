@@ -1,0 +1,33 @@
+[General]
+FullMachineName = {{ ansible_fqdn }}
+ServerRoot = /usr/lib/x86_64-linux-gnu/dirsrv
+StrictHostCheck = true
+SuiteSpotGroup = dirsrv
+SuiteSpotUserID = dirsrv
+[slapd]
+AddOrgEntries = No
+AddSampleEntries = No
+InstScriptsEnabled = true
+InstallLdifFile = none
+RootDN = cn=Directory Manager
+RootDNPwd = {{ auth_ldap_admin_pwd_clear }}
+ServerIdentifier = {{ auth_ldap_shortname }}
+ServerPort = 389
+Suffix = {{ auth_ldap_domain_ldap }}
+bak_dir = /var/lib/dirsrv/slapd-{{ auth_ldap_shortname }}/bak
+bindir = /usr/bin
+cert_dir = /etc/dirsrv/slapd-{{ auth_ldap_shortname }}
+config_dir = /etc/dirsrv/slapd-{{ auth_ldap_shortname }}
+datadir = /usr/share
+db_dir = /var/lib/dirsrv/slapd-{{ auth_ldap_shortname }}/db
+ds_bename = userRoot
+inst_dir = /usr/lib/x86_64-linux-gnu/dirsrv/slapd-{{ auth_ldap_shortname }}
+ldif_dir = /var/lib/dirsrv/slapd-{{ auth_ldap_shortname }}/ldif
+localstatedir = /var
+lock_dir = /var/lock/dirsrv/slapd-{{ auth_ldap_shortname }}
+log_dir = /var/log/dirsrv/slapd-{{ auth_ldap_shortname }}
+run_dir = /var/run/dirsrv
+sbindir = /usr/sbin
+schema_dir = /etc/dirsrv/slapd-{{ auth_ldap_shortname }}/schema
+sysconfdir = /etc
+tmp_dir = /tmp

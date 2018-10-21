@@ -1,7 +1,7 @@
 ---
-  - name: restart slapd
-    become: True
-    service: name=slapd state=restarted enabled=yes
+#  - name: restart slapd
+#    become: True
+#    service: name=slapd state=restarted enabled=yes
 
   - name: restart kdc
     become: True
@@ -15,3 +15,10 @@
   - name: restart saslauthd
     become: True
     service: name=saslauthd state=restarted enabled=yes
+
+  - name: restart dirsrv
+    become: True
+    service:
+      name: "dirsrv@{{ auth_ldap_shortname }}"
+      state: restarted
+      enabled: yes

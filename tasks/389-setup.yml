@@ -1,0 +1,216 @@
+---
+  - name: Check whether directory instance has already been created
+    become: True
+    stat:
+      path: "/etc/dirsrv/slapd-{{ auth_ldap_shortname }}"
+    register: linst
+
+  - name: Generate setup file
+    become: True
+    when: not linst.stat.exists
+    template:
+      src: setup.inf.j2
+      dest: /etc/dirsrv/setup.inf
+      owner: root
+      group: root
+      mode: 0600
+
+  - name: Install directory instance
+    become: True
+    when: not linst.stat.exists
+    command: setup-ds --file=/etc/dirsrv/setup.inf --silent
+
+  - name: Check whether server cert is installed
+    become: True
+    shell: certutil -d "/etc/dirsrv/slapd-{{ auth_ldap_shortname }}" -L | grep "{{ ansible_fqdn }}"
+    register: certsrvout
+    failed_when: False
+    changed_when: False
+
+  - name: stop dirsrv
+    become: True
+    when: certsrvout.rc == 1
+    service:
+      name: "dirsrv@{{ auth_ldap_shortname }}"
+      state: stopped
+
+  - name: Concat certificates
+    become: True
+    when: certsrvout.rc == 1
+    shell: 'openssl pkcs12 -export -out server.pfx -inkey server.key -in server.crt -certfile ca.pem -passout pass:Password'
+    args:
+      chdir: /etc/dirsrv
+
+  - name: Install server certificate
+    become: True
+    when: certsrvout.rc == 1
+    shell: pk12util -n"Server Certificate" -i server.pfx -d"/etc/dirsrv/slapd-{{ auth_ldap_shortname }}" -K password -W Password -name servercert
+    args:
+      chdir: /etc/dirsrv
+    notify: restart dirsrv
+
+  - name: Get CA certificate nickname
+    become: True
+    when: certsrvout.rc == 1
+    shell: certutil -L -d"/etc/dirsrv/slapd-{{ auth_ldap_shortname }}" | grep PKI | sed -E 's/  .*//g'
+    register: caout
+
+  - name: Trust CA certificate for CA purposed
+    become: True
+    when: certsrvout.rc == 1
+    shell: certutil -M -d"/etc/dirsrv/slapd-{{ auth_ldap_shortname }}" -n "{{ caout.stdout }}" -t "CT,,"
+    notify: restart dirsrv
+
+  - name: Store certstore password in filesystem
+    become: True
+    copy:
+      content: 'Internal (Software) Token:password'
+      dest: "/etc/dirsrv/slapd-{{ auth_ldap_shortname }}/pin.txt"
+      owner: dirsrv
+      group: root
+      mode: 0600
+    notify: restart dirsrv
+
+  - name: Remove setup files
+    become: True
+    file:
+      path: "/etc/dirsrv/{{ item }}"
+      state: absent
+    with_items:
+      - server.pfx
+      - setup.inf
+
+  # If we installed a certificate, this will restart the server
+  - meta: flush_handlers
+
+  - name: Configure certificate location
+    ldap_entry:
+      dn: "cn=RSA,cn=encryption,cn=config"
+      server_uri: "ldap://127.0.0.1"
+      objectClass:
+        - 'nsEncryptionModule'
+        - 'top'
+      bind_dn: "cn=Directory Manager"
+      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      state: present
+      attributes:
+        nsSSLPersonalitySSL: "{{ ansible_fqdn }}"
+        nsSSLActivation: on
+        nsSSLToken: "internal (software)"
+        cn: RSA
+    notify: restart dirsrv
+
+  - name: Configure SSL
+    ldap_attr:
+      dn: "cn=encryption,cn=config"
+      server_uri: "ldap://127.0.0.1"
+      state: exact
+      bind_dn: "cn=Directory Manager"
+      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      values: "{{ item.value }}"
+      name: "{{ item.key }}"
+    with_items:
+      - key: nsSSLClientAuth
+        value: "off"
+      - key: nsSSL3
+        value: "off"
+      - key: nsSSL2
+        value: "off"
+      - key: nsSSLSessionTimeout
+        value: "0"
+    notify: restart dirsrv
+
+  - name: Enable SSL
+    ldap_attr:
+      dn: "cn=config"
+      server_uri: "ldap://127.0.0.1"
+      state: exact
+      bind_dn: "cn=Directory Manager"
+      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      name: "nsslapd-security"
+      values: "on"
+    notify: restart dirsrv
+
+  # If we changed the SSL config, this will restart the server and activate it
+  - meta: flush_handlers
+
+  - name: Ensure that ldap config directory exists
+    become: True
+    when: auth_ldap_have_tls
+    file:
+      path: /etc/ldap
+      state: directory
+      owner: root
+      group: root
+      mode: 0755
+
+  - name: Copy TLS CA to ldap config directory
+    become: True
+    when: auth_ldap_have_tls
+    copy:
+      src: /etc/dirsrv/ca.pem
+      dest: /etc/ldap/ca.pem
+      owner: root
+      group: root
+      mode: 0644
+      remote_src: True
+
+  - name: Configure TLS CA in ldap.conf
+    become: True
+    when: auth_ldap_have_tls
+    template:
+      src: ldap.conf.j2
+      dest: /etc/ldap/ldap.conf
+      owner: root
+      group: root
+      mode: 0644
+
+  - name: Set URL to SSL
+    when: auth_ldap_have_tls
+    set_fact:
+      auth_ldap_ansible_url: "ldaps://{{ ansible_fqdn }}"
+
+  - name: Actually create the BaseDN
+    ldap_entry:
+      dn: "{{ auth_ldap_domain_ldap }}"
+      objectClass:
+        - organization
+        - dcObject
+        - top
+      bind_dn: "cn=Directory Manager"
+      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      server_uri: "{{ auth_ldap_ansible_url }}"
+      attributes:
+        dc: "{{ auth_ldap_domain_suffix }}"
+        o: "{{ auth_ldap_domain_suffix|upper }}"
+
+  - name: Configure LDAP containers
+    ldap_entry:
+      dn: "ou={{ item }},{{ auth_ldap_domain_ldap }}"
+      objectClass: organizationalUnit
+      bind_dn: "cn=Directory Manager"
+      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      server_uri: "{{ auth_ldap_ansible_url }}"
+    with_items:
+      - Users
+      - Groups
+
+  - name: Assemble HAProxy certificates
+    when: auth_ldap_have_tls
+    become: True
+    shell: cat /etc/dirsrv/{{ item }}.crt /etc/dirsrv/{{ item }}.key > /etc/dirsrv/{{ item }}.pem && chown root:root /etc/dirsrv/{{ item }}.pem && chmod 600 /etc/dirsrv/{{ item }}.pem
+    changed_when: False
+    with_items:
+      - server
+      - client
+
+  - name: Add HAproxy dropin
+    when: auth_ldap_have_tls
+    become: True
+    template:
+      src: haproxy-dropin.conf.j2
+      dest: /etc/haproxy/conf.d/30-ldap.conf
+      owner: root
+      group: root
+      mode: 0644
+    notify: restart haproxy
