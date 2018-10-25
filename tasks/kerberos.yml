@@ -204,15 +204,14 @@
       bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
       state: exact
       name: "{{ item.key }}"
-      values: "{{ item.values }}"
+      values: "{{ item.value }}"
     with_dict:
-      cn: PAM Pass Through Auth
-      nsslapd-pluginenabled: on
-      nsslapd-pluginLoadGlobal: true
-      pamMissingSuffix: ALLOW
+      nsslapd-pluginenabled: 'on'
+      pamMissingSuffix: ERROR
       pamExcludeSuffix: cn=config
       pamIncludeSuffix: "ou=Users,{{ auth_ldap_domain_ldap }}"
-      pamIDMapMethod: RDN ou=Users,dc=njsm,dc=de
+      pamIDMapMethod: 'ENTRY'
+      pamIDAttr: uid
       pamFallback: 'FALSE'
       pamSecure: 'TRUE'
       pamService: ldapkrb
