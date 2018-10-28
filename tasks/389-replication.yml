@@ -69,12 +69,12 @@
         nsds5replicaroot: "{{ auth_ldap_domain_ldap }}"
         description: "agreement to replicate {{ item[1] }} to {{ item[0] }}"
         nsds5replicacredentials: "{{ auth_ldap_sync_pwd_clear }}"
-        #        nsds5BeginReplicaRefresh: start
     when: (item[0] != item[1]) and (item[1] == ansible_fqdn)
     with_cartesian:
       - "{{ groups[auth_ldap_group] }}"
       - "{{ groups[auth_ldap_group] }}"
     register: repchanged
+    no_log: true
 
   - name: Create reinit script
     when: ansible_fqdn == auth_ldap_init_source
@@ -89,7 +89,11 @@
   - name: Reinit replication peers from master
     when: ansible_fqdn == auth_ldap_init_source and repchanged.changed
     become: True
-    shell: /usr/bin/ldapmodify -x -D 'cn=Directory Manager' -w '{{ auth_ldap_admin_pwd_clear }}' < /etc/ldap/ansible/reinit.ldif
+    expect:
+      command: /bin/bash -c "/usr/bin/ldapmodify -x -D cn=Directory\ Manager -W < /etc/ldap/ansible/reinit.ldif"
+      responses:
+        (Enter LDAP Password): "{{ auth_ldap_admin_pwd_clear }}"
+    no_log: true
 
   - name: Give replication some time
     when: repchanged.changed

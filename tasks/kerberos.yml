@@ -12,7 +12,7 @@
   - name: Store kerberos LDAP credentials
     become: True
     expect:
-      command: "kdb5_ldap_util stashsrvpw -f /etc/krb5kdc/ldap.cred cn=krbbind,{{ auth_ldap_domain_ldap }}"
+      command: "kdb5_ldap_util stashsrvpw -f /etc/krb5kdc/ldap.cred cn=krbbind,ou=TechnicalUsers,{{ auth_ldap_domain_ldap }}"
       creates: /etc/krb5kdc/ldap.cred
       responses:
         (cn\=krbbind): "{{ auth_kerberos_ldap_password }}"
@@ -36,8 +36,11 @@
     notify: restart kdc
 
   - name: Figure out whether realm has been created yet
-    shell: |
-      ldapsearch -Z -x -D "cn=Directory Manager" -w '{{ auth_ldap_admin_pwd_clear }}' -b "{{ auth_ldap_domain_ldap }}" cn=Kerberos | grep "dn: cn" | grep Kerberos
+    expect:
+      command: /bin/bash -c "ldapsearch -Z -x -W -D cn=Directory\ Manager -b {{ auth_ldap_domain_ldap }} cn=Kerberos | grep dn:"
+      responses:
+        (Enter LDAP Password): "{{ auth_ldap_admin_pwd_clear }}"
+    no_log: true
     register: krbrealmcheck
     failed_when: False
     changed_when: False
@@ -46,7 +49,7 @@
     run_once: true
     when: krbrealmcheck.rc == 1
     expect:
-      command: kdb5_ldap_util -D "cn=Directory Manager" create -subtrees "ou=Users,{{ auth_ldap_domain_ldap }}" -r "{{ auth_ldap_domain|upper }}" -s
+      command: kdb5_ldap_util -D "cn=Directory Manager" create -subtrees "ou=Users,{{ auth_ldap_domain_ldap }}:ou=TechnicalUsers,{{ auth_ldap_domain_ldap }}" -r "{{ auth_ldap_domain|upper }}" -s
       responses:
         (cn\=Directory\ Manager): "{{ auth_ldap_admin_pwd_clear }}"
         (database master key): "{{ auth_kerberos_database_master_key }}"
@@ -97,46 +100,8 @@
     run_once: True
     command: kadmin.local -q 'addprinc -randkey WELLKNOWN/ANONYMOUS'
 
-  - name: Create principals for 389ds
-    become: True
-    run_once: True
-    command: kadmin.local addprinc -randkey "ldap/{{ hostvars[item]['ansible_fqdn'] }}@{{ auth_ldap_domain|upper }}"
-    failed_when: False
-    changed_when: False
-    with_items: "{{ groups['core'] }}"
-
-  - name: Create keytabs for 389ds
-    become: True
-    when: item == inventory_hostname
-    command: kadmin.local ktadd -k /etc/dirsrv/ds.keytab "ldap/{{ hostvars[item]['ansible_fqdn'] }}@{{ auth_ldap_domain|upper }}"
-    args:
-      creates: /etc/dirsrv/ds.keytab
-    with_items: "{{ groups['core'] }}"
-    notify: restart dirsrv
-
-  - name: Allow 389ds to access it's keytab
-    become: True
-    file:
-      path: /etc/dirsrv/ds.keytab
-      owner: dirsrv
-      group: root
-      mode: 0640
-
-  - name: Create host principals
-    become: True
-    run_once: True
-    command: kadmin.local addprinc -randkey "host/{{ hostvars[item]['ansible_fqdn'] }}@NJSM.DE"
-    failed_when: False
-    changed_when: False
-    with_items: "{{ groups['core'] }}"
-
-  - name: Create host keytabs
-    become: True
-    when: item == inventory_hostname
-    command: kadmin.local ktadd "host/{{ hostvars[item]['ansible_fqdn'] }}@NJSM.DE"
-    args:
-      creates: /etc/krb5.keytab
-    with_items: "{{ groups['core'] }}"
+  - include_tasks: serviceaccount.yml
+    with_items: "{{ auth_ldap_service_accounts }}"
 
   - name: Reconfigure 389ds to support GSSAPI
     become: True
@@ -148,53 +113,50 @@
       mode: 0644
     notify: restart dirsrv
 
-  #  - name: Remove default SASL mapping entries
-  #    ldap_entry:
-  #      dn: "cn={{ item }},cn=mapping,cn=sasl,cn=config"
-  #      server_uri: "{{ auth_ldap_ansible_url }}"
-  #      bind_dn: "cn=Directory Manager"
-  #      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
-  #      state: absent
-  #    with_items:
-  #      - Kerberos uid mapping
-  #      - rfc 2829 dn syntax
-  #      - rfc 2829 u syntax
-  #      - uid mapping
-  #
-  #  # Quote: "There is no way to specify the order that mappings are processed.
-  #  # However, there is a way to control how SASL mappings are processed: the
-  #  # name. The Directory Server processes SASL mappings in reverse ASCII order."
-  #  - name: Add normal people SASL UID mapping
-  #    ldap_entry:
-  #      dn: "cn=Y_User Map,cn=mapping,cn=sasl,cn=config"
-  #      server_uri: "{{ auth_ldap_ansible_url }}"
-  #      bind_dn: "cn=Directory Manager"
-  #      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
-  #      state: present
-  #      objectClass:
-  #        - top
-  #        - nsSaslMapping
-  #      attributes:
-  #        cn: Y_User Map
-  #        nsSaslMapRegexString: \(.*\)@{{ auth_ldap_domain|upper }}
-  #        nsSaslMapBaseDNTemplate: "ou=Users,{{ auth_ldap_domain_ldap }}"
-  #        nsSaslMapFilterTemplate: (uid=\1)
-  #
-  #  - name: Add service account SASL UID mapping
-  #    ldap_entry:
-  #      dn: "cn=Z_Service Map,cn=mapping,cn=sasl,cn=config"
-  #      server_uri: "{{ auth_ldap_ansible_url }}"
-  #      bind_dn: "cn=Directory Manager"
-  #      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
-  #      state: present
-  #      objectClass:
-  #        - top
-  #        - nsSaslMapping
-  #      attributes:
-  #        cn: Z_Service Map
-  #        nsSaslMapRegexString: \(.*\)/\(.*\)@{{ auth_ldap_domain|upper }}
-  #        nsSaslMapBaseDNTemplate: "cn={{ auth_ldap_domain|upper }},cn=Kerberos,{{ auth_ldap_domain_ldap }}"
-  #        nsSaslMapFilterTemplate: (krbPrincipalName=\1/\2@{{ auth_ldap_domain|upper }})
+  - name: Remove default SASL Kerberos mapping entries
+    ldap_entry:
+      dn: "cn={{ item }},cn=mapping,cn=sasl,cn=config"
+      server_uri: "{{ auth_ldap_ansible_url }}"
+      bind_dn: "cn=Directory Manager"
+      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      state: absent
+    with_items:
+      - Kerberos uid mapping
+
+  # Quote: "There is no way to specify the order that mappings are processed.
+  # However, there is a way to control how SASL mappings are processed: the
+  # name. The Directory Server processes SASL mappings in reverse ASCII order."
+  - name: Add normal people SASL UID mapping
+    ldap_entry:
+      dn: "cn=User Map,cn=mapping,cn=sasl,cn=config"
+      server_uri: "{{ auth_ldap_ansible_url }}"
+      bind_dn: "cn=Directory Manager"
+      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      state: present
+      objectClass:
+        - top
+        - nsSaslMapping
+      attributes:
+        cn: User Map
+        nsSaslMapRegexString: '([^/]*)@(.*)\.(.*)'
+        nsSaslMapBaseDNTemplate: uid=\1,ou=Users,dc=\2,dc=\3
+        nsSaslMapFilterTemplate: (objectclass=posixAccount)
+
+  - name: Add service account SASL UID mapping
+    ldap_entry:
+      dn: "cn=z_Service Map,cn=mapping,cn=sasl,cn=config"
+      server_uri: "{{ auth_ldap_ansible_url }}"
+      bind_dn: "cn=Directory Manager"
+      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      state: present
+      objectClass:
+        - top
+        - nsSaslMapping
+      attributes: # Hint: For reasons unknown, 389ds drops the domain on these tickets...
+        nsSaslMapRegexString: ([^/]+)/(.+)
+        cn: z_Service Map
+        nsSaslMapBaseDNTemplate: "uid=\\2,ou=\\1,ou=TechnicalUsers,{{ auth_ldap_domain_ldap }}"
+        nsSaslMapFilterTemplate: (objectclass=*)
 
   - name: Add PAM passthrough auth for normal users
     ldap_attr:

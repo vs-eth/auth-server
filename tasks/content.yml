@@ -19,7 +19,6 @@
         sn: "{{ item.sn }}"
         givenName: "{{ item.givenName }}"
         mail: "{{ item.mail }}"
-        userPassword: "{SASL}{{ item.id }}@{{ auth_ldap_domain|upper }}"
         cn: "{{ item.name }}"
     register: userchanged
 

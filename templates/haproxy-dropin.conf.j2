@@ -8,6 +8,7 @@ frontend {{ item }}-ldap-front
 
 backend {{ item }}-ldap-back
         mode tcp
+        option ldap-check
         server remote {{ item }}:60389 ssl crt /etc/dirsrv/client.pem ca-file /etc/dirsrv/ca.pem verify required check check-ssl
 
 {% endif %}
@@ -20,4 +21,5 @@ frontend ldap-local-front
 
 backend ldap-local-back
         mode tcp
-        server local 127.0.0.1:389
+        option ldap-check
+        server local 127.0.0.1:389 check

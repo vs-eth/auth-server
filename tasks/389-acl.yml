@@ -2,7 +2,7 @@
   - name: Create LDAP system users
     run_once: true
     ldap_entry:
-      dn: "cn={{ item.name }},{{ auth_ldap_domain_ldap }}"
+      dn: "cn={{ item.name }},ou=TechnicalUsers,{{ auth_ldap_domain_ldap }}"
       server_uri: "{{ auth_ldap_ansible_url }}"
       objectClass:
         - posixAccount

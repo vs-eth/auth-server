@@ -5,8 +5,8 @@
     {{ auth_ldap_domain|upper }}-LDAP = {
         db_library = kldap
         db_module_dir = /usr/lib/x86_64-linux-gnu/krb5/plugins/kdb
-        ldap_kdc_dn = "cn=krbbind,{{ auth_ldap_domain_ldap }}"
-        ldap_kadmind_dn = "cn=krbbind,{{ auth_ldap_domain_ldap }}"
+        ldap_kdc_dn = "cn=krbbind,ou=TechnicalUsers,{{ auth_ldap_domain_ldap }}"
+        ldap_kadmind_dn = "cn=krbbind,ou=TechnicalUsers,{{ auth_ldap_domain_ldap }}"
         ldap_service_password_file = /etc/krb5kdc/ldap.cred
         ldap_kerberos_container_dn = "cn=Kerberos,{{ auth_ldap_domain_ldap }}"
         ldap_servers ={% for item in groups['core'] %} ldaps://{{ hostvars[item]['ansible_default_ipv4']['address'] }}{% endfor %}

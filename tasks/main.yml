@@ -1,35 +1,8 @@
 ---
-  # Careful: These settings only take effect if you set them *before* installation!
-  #  - name: Configure OpenLDAP (preinstall settings)
-  #    become: True
-  #    debconf: name="slapd" vtype="string" question="{{ item.key }}" value="{{ item.value }}"
-  #    with_items:
-  #      - key: "slapd/domain"
-  #        value: "{{ auth_ldap_domain }}"
-  #      - key: "shared/organization"
-  #        value: "{{ auth_ldap_domain }}"
-  #
-  #  - name: Configure OpenLDAP (preinstall passwords)
-  #    become: True
-  #    debconf: name="slapd" vtype="password" question="{{ item.key }}" value="{{ item.value }}"
-  #    with_items:
-  #      - key: "slapd/internal/adminpw"
-  #        value: "{{ auth_ldap_admin_pwd }}"
-  #      - key: "slapd/internal/generated_adminpw"
-  #        value: "{{ auth_ldap_admin_pwd }}"
-  #      - key: "slapd/password2"
-  #        value: "{{ auth_ldap_admin_pwd }}"
-  #      - key: "slapd/password1"
-  #        value: "{{ auth_ldap_admin_pwd }}"
-  #    no_log: True
-  #    changed_when: False
-
   - name: Install software
     become: True
     apt: name="{{ item }}" state=present update_cache=yes cache_valid_time=1800
     with_items:
-      #      - slapd
-      #      - ldap-utils
       - python-ldap
       - krb5-kdc-ldap
       - krb5-kdc
@@ -45,10 +18,6 @@
     tags:
       - ldap
       - kerberos
-
-      #  - include_tasks: openldap-setup.yml
-      #    tags:
-      #      - ldap
 
   - import_tasks: 389-setup.yml
     tags:
@@ -76,12 +45,7 @@
   - include_tasks: kerberos.yml
     tags:
       - kerberos
-      #
-      #  - name: Set URL to SSL
-      #    when: auth_ldap_have_tls
-      #    set_fact:
-      #      auth_ldap_ansible_url: ldaps://127.0.0.1
-      #
+
   - name: Configure LDAP users
     include_tasks: content.yml
     with_items:

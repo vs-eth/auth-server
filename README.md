@@ -1,16 +1,11 @@
 # Auth-Server
-Set up OpenLDAP and MIT Kerberos to authenticate users. Tested on Debian 9.
+Set up 389ds and MIT Kerberos to authenticate users. Tested on Debian 9.
 
 ## Note
-The LDAP administrator password settings are only guaranteed to take effect if you set them before running the role for the first time, as they use `debconf` to be injected at installation time!
-The LDAP schema used is the openLDAP-default RFC2307, `Users` and `Groups` OUs are created automatically.
+The LDAP schema used is RFC2307bis, `Users` and `Groups` OUs are created automatically.
 
 ## Description
-This role sets up openLDAP in mirror mode. The configuration for mirror-mode is only applied once, so be careful to add all servers beforehand. LDAP in turn is used as a database for kerberos, each server runs both KDC and kadmin. Additionally, saslauthd is used for pass-through auth:
-  * Each user in the user OU is also a Kerberos principal
-  * Each user has the password `{SASL}uid@domain`
-  * A normal bind will then use saslauthd to authenticate against kerberos, so that the kerberos password is used
-  * A GSSAPI bind will be recognized and the user should end up being mapped as the correct principal in LDAP
+This role sets up 389ds in multi-master mode.
 
 ## Configuration
 | Name | Default value | Description |

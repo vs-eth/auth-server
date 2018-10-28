@@ -1,7 +1,10 @@
 ---
   - name: Check whether {{ item.name }} schema has been imported
-    shell: |
-      ldapsearch -Z -x -D 'cn=Directory Manager' -w '{{ auth_ldap_admin_pwd_clear }}' -b cn=schema objectClasses | grep {{ item.checkattr }}
+    expect:
+      command: /bin/bash -c "ldapsearch -Z -x -W -D cn=Directory\ Manager -b cn=schema objectClasses | grep {{ item.checkattr }}"
+      responses:
+        (Enter LDAP Password): "{{ auth_ldap_admin_pwd_clear }}"
+    no_log: true
     register: check
     failed_when: False
     changed_when: False
@@ -27,4 +30,8 @@
   - name: Import {{ item.name }} schema
     when: check.rc == 1
     become: True
-    shell: "/usr/bin/ldapmodify -x -D 'cn=Directory Manager' -w '{{ auth_ldap_admin_pwd_clear }}' < /etc/ldap/ansible/{{ item.file }}"
+    expect:
+      command: /bin/bash -c "/usr/bin/ldapmodify -Z -x -D cn=Directory\ Manager -W < /etc/ldap/ansible/{{ item.file }}"
+      responses:
+        (Enter LDAP Password): "{{ auth_ldap_admin_pwd_clear }}"
+    no_log: true

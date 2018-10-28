@@ -194,6 +194,27 @@
     with_items:
       - Users
       - Groups
+      - TechnicalUsers
+
+  - name: Configure LDAP service containers
+    ldap_entry:
+      dn: "ou={{ item }},ou=TechnicalUsers,{{ auth_ldap_domain_ldap }}"
+      objectClass: organizationalUnit
+      bind_dn: "cn=Directory Manager"
+      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      server_uri: "{{ auth_ldap_ansible_url }}"
+    with_items: "{{ auth_ldap_services }}"
+
+  - name: Configure LDAP service bases
+    ldap_entry:
+      dn: "cn={{ item.name }},{{ auth_ldap_domain_ldap }}"
+      server_uri: "{{ bind_ldap_ansible_url }}"
+      bind_dn: "cn=Directory Manager"
+      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      objectClass: "{{ item.objectClass }}"
+      attributes:
+        cn: "{{ item.name }}"
+    with_items: "{{ auth_ldap_service_bases }}"
 
   - name: Assemble HAProxy certificates
     when: auth_ldap_have_tls
@@ -213,4 +234,44 @@
       owner: root
       group: root
       mode: 0644
-    notify: restart haproxy
+      notify: restart haproxy
+
+  - name: Enable Retro Changelog Plugin
+    ldap_attr:
+      dn: "cn=Retro Changelog Plugin,cn=plugins,cn=config"
+      server_uri: "{{ auth_ldap_ansible_url }}"
+      bind_dn: "cn=Directory Manager"
+      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      state: exact
+      name: "{{ item.key }}"
+      values: "{{ item.value }}"
+    with_dict:
+      nsslapd-pluginEnabled: 'on'
+      nsslapd-attribute: 'nsuniqueid:targetUniqueId'
+      nsslapd-exclude-suffix: 'cn=config'
+    notify: restart dirsrv
+
+  - name: Configure Retro Changelog Plugin
+    ldap_attr:
+      dn: "cn=changelog5,cn=config"
+      server_uri: "{{ auth_ldap_ansible_url }}"
+      bind_dn: "cn=Directory Manager"
+      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      state: exact
+      name: "{{ item.key }}"
+      values: "{{ item.value }}"
+    with_dict:
+      nsslapd-changelogmaxage: '2d'
+
+  - name: Enable Retro Changelog Plugin
+    ldap_attr:
+      dn: "cn=Content Synchronization,cn=plugins,cn=config"
+      server_uri: "{{ auth_ldap_ansible_url }}"
+      bind_dn: "cn=Directory Manager"
+      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      state: exact
+      name: "{{ item.key }}"
+      values: "{{ item.value }}"
+    with_dict:
+      nsslapd-pluginEnabled: 'on'
+    notify: restart dirsrv
