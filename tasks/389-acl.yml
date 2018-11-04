@@ -1,4 +1,17 @@
 ---
+  - name: Restrict anonymous bind to RootDN
+    ldap_attr:
+      dn: "cn=config"
+      server_uri: "{{ auth_ldap_ansible_url }}"
+      bind_dn: "cn=Directory Manager"
+      bind_pw: "{{ auth_ldap_admin_pwd }}"
+      state: exact
+      name: "{{ item.key }}"
+      values: "{{ item.value }}"
+    with_dict:
+      nsslapd-allow-anonymous-access: 'rootdse'
+    notify: restart dirsrv
+
   - name: Create LDAP system users
     run_once: true
     ldap_entry:
@@ -9,7 +22,7 @@
         - top
         - inetOrgPerson
       bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      bind_pw: "{{ auth_ldap_admin_pwd }}"
       state: present
       attributes:
         uid: "{{ item.id }}"
@@ -29,7 +42,7 @@
       dn: "cn=sys_ldap_readers,ou=Groups,{{ auth_ldap_domain_ldap }}"
       objectClass: groupOfNames
       bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      bind_pw: "{{ auth_ldap_admin_pwd }}"
       server_uri: "{{ auth_ldap_ansible_url }}"
       attributes:
         member: "{{ item }}"
@@ -40,7 +53,7 @@
     ldap_attr:
       dn: "cn=sys_ldap_readers,ou=Groups,{{ auth_ldap_domain_ldap }}"
       bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      bind_pw: "{{ auth_ldap_admin_pwd }}"
       server_uri: "{{ auth_ldap_ansible_url }}"
       name: member
       values: "{{ auth_ldap_allow_read }}"
@@ -50,10 +63,12 @@
     ldap_attr:
       dn: "{{ item.target }}"
       bind_dn: "cn=Directory Manager"
-      bind_pw: '{{ auth_ldap_admin_pwd_clear }}'
+      bind_pw: '{{ auth_ldap_admin_pwd }}'
       server_uri: "{{ auth_ldap_ansible_url }}"
       values: "{{ item.acls }}"
       name: aci
       state: exact
     when: item.target != "cn=Kerberos,{{ auth_ldap_domain_ldap }}"
     with_items: "{{ auth_ldap_permissions }}"
+    tags:
+      - skip_ansible_lint

@@ -3,7 +3,7 @@
     expect:
       command: /bin/bash -c "ldapsearch -Z -x -W -D cn=Directory\ Manager -b cn=schema objectClasses | grep {{ item.checkattr }}"
       responses:
-        (Enter LDAP Password): "{{ auth_ldap_admin_pwd_clear }}"
+        (Enter LDAP Password): "{{ auth_ldap_admin_pwd }}"
     no_log: true
     register: check
     failed_when: False
@@ -33,5 +33,5 @@
     expect:
       command: /bin/bash -c "/usr/bin/ldapmodify -Z -x -D cn=Directory\ Manager -W < /etc/ldap/ansible/{{ item.file }}"
       responses:
-        (Enter LDAP Password): "{{ auth_ldap_admin_pwd_clear }}"
+        (Enter LDAP Password): "{{ auth_ldap_admin_pwd }}"
     no_log: true

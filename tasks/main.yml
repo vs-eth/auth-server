@@ -1,20 +1,23 @@
 ---
   - name: Install software
     become: True
-    apt: name="{{ item }}" state=present update_cache=yes cache_valid_time=1800
-    with_items:
-      - python-ldap
-      - krb5-kdc-ldap
-      - krb5-kdc
-      - krb5-admin-server
-      - krb5-pkinit
-      - python-pexpect
-      - sasl2-bin
-      - libsasl2-modules-gssapi-mit
-      - 389-ds-base
-      - libnss3-tools
-      - libldap-common
-      - libpam-krb5
+    apt:
+      state: present
+      update_cache: yes
+      cache_valid_time: 1800
+      name:
+        - python-ldap
+        - krb5-kdc-ldap
+        - krb5-kdc
+        - krb5-admin-server
+        - krb5-pkinit
+        - python-pexpect
+        - sasl2-bin
+        - libsasl2-modules-gssapi-mit
+        - 389-ds-base
+        - libnss3-tools
+        - libldap-common
+        - libpam-krb5
     tags:
       - ldap
       - kerberos

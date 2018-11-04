@@ -8,12 +8,12 @@
         - person
         - inetorgperson
       bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      bind_pw: "{{ auth_ldap_admin_pwd }}"
       state: present
       attributes:
         cn: replication manager
         sn: RM
-        userPassword: "{{ auth_ldap_sync_pwd_clear }}"
+        userPassword: "{{ auth_ldap_sync_pwd }}"
         passwordExpirationTime: 20990119031407Z
 
   - name: Enable changelog
@@ -24,7 +24,7 @@
         - top
         - extensibleObject
       bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      bind_pw: "{{ auth_ldap_admin_pwd }}"
       state: present
       attributes:
         cn: changelog5
@@ -39,7 +39,7 @@
         - extensibleObject
         - nsds5replica
       bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      bind_pw: "{{ auth_ldap_admin_pwd }}"
       state: present
       attributes:
         cn: replica
@@ -58,7 +58,7 @@
         - top
         - nsds5replicationagreement
       bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      bind_pw: "{{ auth_ldap_admin_pwd }}"
       state: present
       attributes:
         cn: "{{ item[0] }}-to-{{ item[1] }}"
@@ -68,7 +68,7 @@
         nsds5replicabindmethod: SIMPLE
         nsds5replicaroot: "{{ auth_ldap_domain_ldap }}"
         description: "agreement to replicate {{ item[1] }} to {{ item[0] }}"
-        nsds5replicacredentials: "{{ auth_ldap_sync_pwd_clear }}"
+        nsds5replicacredentials: "{{ auth_ldap_sync_pwd }}"
     when: (item[0] != item[1]) and (item[1] == ansible_fqdn)
     with_cartesian:
       - "{{ groups[auth_ldap_group] }}"
@@ -92,10 +92,39 @@
     expect:
       command: /bin/bash -c "/usr/bin/ldapmodify -x -D cn=Directory\ Manager -W < /etc/ldap/ansible/reinit.ldif"
       responses:
-        (Enter LDAP Password): "{{ auth_ldap_admin_pwd_clear }}"
+        (Enter LDAP Password): "{{ auth_ldap_admin_pwd }}"
     no_log: true
+    tags:
+      - skip_ansible_lint
 
   - name: Give replication some time
     when: repchanged.changed
     pause:
       seconds: 5
+    tags:
+      - skip_ansible_lint
+
+  - name: Configure Retro Changelog Plugin
+    ldap_attr:
+      dn: "cn=changelog5,cn=config"
+      server_uri: "{{ auth_ldap_ansible_url }}"
+      bind_dn: "cn=Directory Manager"
+      bind_pw: "{{ auth_ldap_admin_pwd }}"
+      state: exact
+      name: "{{ item.key }}"
+      values: "{{ item.value }}"
+    with_dict:
+      nsslapd-changelogmaxage: '2d'
+
+  - name: Enable Retro Changelog Plugin
+    ldap_attr:
+      dn: "cn=Content Synchronization,cn=plugins,cn=config"
+      server_uri: "{{ auth_ldap_ansible_url }}"
+      bind_dn: "cn=Directory Manager"
+      bind_pw: "{{ auth_ldap_admin_pwd }}"
+      state: exact
+      name: "{{ item.key }}"
+      values: "{{ item.value }}"
+    with_dict:
+      nsslapd-pluginEnabled: 'on'
+    notify: restart dirsrv

@@ -37,14 +37,14 @@
   - name: Concat certificates
     become: True
     when: certsrvout.rc == 1
-    shell: 'openssl pkcs12 -export -out server.pfx -inkey server.key -in server.crt -certfile ca.pem -passout pass:Password'
+    command: 'openssl pkcs12 -export -out server.pfx -inkey server.key -in server.crt -certfile ca.pem -passout pass:Password'
     args:
       chdir: /etc/dirsrv
 
   - name: Install server certificate
     become: True
     when: certsrvout.rc == 1
-    shell: pk12util -n"Server Certificate" -i server.pfx -d"/etc/dirsrv/slapd-{{ auth_ldap_shortname }}" -K password -W Password -name servercert
+    command: 'pk12util -n"Server Certificate" -i server.pfx -d"/etc/dirsrv/slapd-{{ auth_ldap_shortname }}" -K password -W Password -name servercert'
     args:
       chdir: /etc/dirsrv
     notify: restart dirsrv
@@ -52,13 +52,13 @@
   - name: Get CA certificate nickname
     become: True
     when: certsrvout.rc == 1
-    shell: certutil -L -d"/etc/dirsrv/slapd-{{ auth_ldap_shortname }}" | grep PKI | sed -E 's/  .*//g'
+    shell: "certutil -L -d\"/etc/dirsrv/slapd-{{ auth_ldap_shortname }}\" | grep PKI | sed -E 's/  .*//g'"
     register: caout
 
   - name: Trust CA certificate for CA purposed
     become: True
     when: certsrvout.rc == 1
-    shell: certutil -M -d"/etc/dirsrv/slapd-{{ auth_ldap_shortname }}" -n "{{ caout.stdout }}" -t "CT,,"
+    command: 'certutil -M -d"/etc/dirsrv/slapd-{{ auth_ldap_shortname }}" -n "{{ caout.stdout }}" -t "CT,,"'
     notify: restart dirsrv
 
   - name: Store certstore password in filesystem
@@ -91,7 +91,7 @@
         - 'nsEncryptionModule'
         - 'top'
       bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      bind_pw: "{{ auth_ldap_admin_pwd }}"
       state: present
       attributes:
         nsSSLPersonalitySSL: "{{ ansible_fqdn }}"
@@ -106,7 +106,7 @@
       server_uri: "ldap://127.0.0.1"
       state: exact
       bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      bind_pw: "{{ auth_ldap_admin_pwd }}"
       values: "{{ item.value }}"
       name: "{{ item.key }}"
     with_items:
@@ -126,7 +126,7 @@
       server_uri: "ldap://127.0.0.1"
       state: exact
       bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      bind_pw: "{{ auth_ldap_admin_pwd }}"
       name: "nsslapd-security"
       values: "on"
     notify: restart dirsrv
@@ -178,7 +178,7 @@
         - dcObject
         - top
       bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      bind_pw: "{{ auth_ldap_admin_pwd }}"
       server_uri: "{{ auth_ldap_ansible_url }}"
       attributes:
         dc: "{{ auth_ldap_domain_suffix }}"
@@ -189,7 +189,7 @@
       dn: "ou={{ item }},{{ auth_ldap_domain_ldap }}"
       objectClass: organizationalUnit
       bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      bind_pw: "{{ auth_ldap_admin_pwd }}"
       server_uri: "{{ auth_ldap_ansible_url }}"
     with_items:
       - Users
@@ -201,7 +201,7 @@
       dn: "ou={{ item }},ou=TechnicalUsers,{{ auth_ldap_domain_ldap }}"
       objectClass: organizationalUnit
       bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      bind_pw: "{{ auth_ldap_admin_pwd }}"
       server_uri: "{{ auth_ldap_ansible_url }}"
     with_items: "{{ auth_ldap_services }}"
 
@@ -210,7 +210,7 @@
       dn: "cn={{ item.name }},{{ auth_ldap_domain_ldap }}"
       server_uri: "{{ bind_ldap_ansible_url }}"
       bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      bind_pw: "{{ auth_ldap_admin_pwd }}"
       objectClass: "{{ item.objectClass }}"
       attributes:
         cn: "{{ item.name }}"
@@ -241,7 +241,7 @@
       dn: "cn=Retro Changelog Plugin,cn=plugins,cn=config"
       server_uri: "{{ auth_ldap_ansible_url }}"
       bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      bind_pw: "{{ auth_ldap_admin_pwd }}"
       state: exact
       name: "{{ item.key }}"
       values: "{{ item.value }}"
@@ -251,27 +251,3 @@
       nsslapd-exclude-suffix: 'cn=config'
     notify: restart dirsrv
 
-  - name: Configure Retro Changelog Plugin
-    ldap_attr:
-      dn: "cn=changelog5,cn=config"
-      server_uri: "{{ auth_ldap_ansible_url }}"
-      bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
-      state: exact
-      name: "{{ item.key }}"
-      values: "{{ item.value }}"
-    with_dict:
-      nsslapd-changelogmaxage: '2d'
-
-  - name: Enable Retro Changelog Plugin
-    ldap_attr:
-      dn: "cn=Content Synchronization,cn=plugins,cn=config"
-      server_uri: "{{ auth_ldap_ansible_url }}"
-      bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
-      state: exact
-      name: "{{ item.key }}"
-      values: "{{ item.value }}"
-    with_dict:
-      nsslapd-pluginEnabled: 'on'
-    notify: restart dirsrv

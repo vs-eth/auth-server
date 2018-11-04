@@ -9,7 +9,7 @@
         - top
         - inetOrgPerson
       bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      bind_pw: "{{ auth_ldap_admin_pwd }}"
       state: present
       attributes:
         uid: "{{ item.id }}"
@@ -27,3 +27,5 @@
     when: userchanged.changed
     become: True
     command: kadmin.local addprinc -randkey -x dn="uid={{ item.id }},ou=Users,{{ auth_ldap_domain_ldap }}" +requires_preauth "{{ item.id }}"
+    tags:
+      - skip_ansible_lint

@@ -39,7 +39,7 @@
     expect:
       command: /bin/bash -c "ldapsearch -Z -x -W -D cn=Directory\ Manager -b {{ auth_ldap_domain_ldap }} cn=Kerberos | grep dn:"
       responses:
-        (Enter LDAP Password): "{{ auth_ldap_admin_pwd_clear }}"
+        (Enter LDAP Password): "{{ auth_ldap_admin_pwd }}"
     no_log: true
     register: krbrealmcheck
     failed_when: False
@@ -51,20 +51,22 @@
     expect:
       command: kdb5_ldap_util -D "cn=Directory Manager" create -subtrees "ou=Users,{{ auth_ldap_domain_ldap }}:ou=TechnicalUsers,{{ auth_ldap_domain_ldap }}" -r "{{ auth_ldap_domain|upper }}" -s
       responses:
-        (cn\=Directory\ Manager): "{{ auth_ldap_admin_pwd_clear }}"
+        (cn\=Directory\ Manager): "{{ auth_ldap_admin_pwd }}"
         (database master key): "{{ auth_kerberos_database_master_key }}"
 
   - name: Configure LDAP ACLs (Kerberos)
     ldap_attr:
       dn: "{{ item.target }}"
       bind_dn: "cn=Directory Manager"
-      bind_pw: '{{ auth_ldap_admin_pwd_clear }}'
+      bind_pw: '{{ auth_ldap_admin_pwd }}'
       server_uri: "{{ auth_ldap_ansible_url }}"
       values: "{{ item.acls }}"
       name: aci
       state: exact
     when: item.target == "cn=Kerberos,{{ auth_ldap_domain_ldap }}"
     with_items: "{{ auth_ldap_permissions }}"
+    tags:
+      - skip_ansible_lint
 
   - name: Fetch master database secret to control node
     when: krbrealmcheck.rc == 1
@@ -118,7 +120,7 @@
       dn: "cn={{ item }},cn=mapping,cn=sasl,cn=config"
       server_uri: "{{ auth_ldap_ansible_url }}"
       bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      bind_pw: "{{ auth_ldap_admin_pwd }}"
       state: absent
     with_items:
       - Kerberos uid mapping
@@ -131,7 +133,7 @@
       dn: "cn=User Map,cn=mapping,cn=sasl,cn=config"
       server_uri: "{{ auth_ldap_ansible_url }}"
       bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      bind_pw: "{{ auth_ldap_admin_pwd }}"
       state: present
       objectClass:
         - top
@@ -147,7 +149,7 @@
       dn: "cn=z_Service Map,cn=mapping,cn=sasl,cn=config"
       server_uri: "{{ auth_ldap_ansible_url }}"
       bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      bind_pw: "{{ auth_ldap_admin_pwd }}"
       state: present
       objectClass:
         - top
@@ -163,7 +165,7 @@
       dn: "cn=PAM Pass Through Auth,cn=plugins,cn=config"
       server_uri: "{{ auth_ldap_ansible_url }}"
       bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd_clear }}"
+      bind_pw: "{{ auth_ldap_admin_pwd }}"
       state: exact
       name: "{{ item.key }}"
       values: "{{ item.value }}"
