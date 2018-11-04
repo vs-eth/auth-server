@@ -2,7 +2,7 @@ version: 2.0
 jobs:
   build:
     docker:
-      - image: uubk:ansible-standards
+      - image: uubk/ansible-standards:latest
     steps:
       - checkout
       - run: git ls-files | xargs ansible-review
