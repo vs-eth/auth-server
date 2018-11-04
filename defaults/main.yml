@@ -1,13 +1,24 @@
 ---
-# Change these:
+# LDAP BaseDN settings (you need to change these)
 auth_ldap_domain: None
 auth_ldap_domain_ldap: None
-# You'll want to generate this with `/usr/sbin/slappasswd -h {SSHA}`
+auth_ldap_domain_suffix: None
+
+# LDAP admin credentials (you need to change these)
 auth_ldap_admin_pwd: None
-auth_ldap_admin_pwd_clear: None
-auth_kerberos_ldap_password_ldap: False
+auth_ldap_sync_pwd: None
+
+# LDAP init source (you need to change this)
+# Init source designates the ldap server whose contents should be copied to all
+# other servers on iniy
+auth_ldap_init_source: False
+
+# Kerberos admin credentials (you need to change these)
 auth_kerberos_ldap_password: False
 auth_kerberos_database_master_key: False
+
+# Group that all LDAP/kerberos servers are in (you probably need to change this)
+auth_ldap_group: core
 
 # TLS for openLDAP
 auth_ldap_have_tls: True
@@ -21,56 +32,76 @@ auth_kerberos_enctypes: "aes256-cts-hmac-sha384-192 aes128-cts-hmac-sha256-128"
 # Users to create
 auth_ldap_users: []
 
-# Users to grant 'read' permission on Users subtree
-auth_ldap_allow_read:
-  - "cn=krbbind,{{ auth_ldap_domain_ldap }}"
+# Users to grant 'read' permission on all non-secret attributes of users and
+# groups. You'll probably need to list service accounts in here.
+auth_ldap_allow_read: []
 
-# Permissions
-auth_ldap_data_permissions:
-  - >-
-    {0}to attrs=shadowLastChange,userPKCS12,krbPrincipalKey,krbExtraData
-    by dn.exact="cn=krbbind,{{ auth_ldap_domain_ldap }}" write
-    by * none
-  - >-
-    {1}to attrs=userPassword
-    by dn.exact="cn=krbbind,{{ auth_ldap_domain_ldap }}" write
-    by * auth
-  - >-
-    {2}to dn.regex="^uid=([^,]+),ou=Users,{{ auth_ldap_domain_ldap }}$"
-    by dn.exact,expand="uid=$1,ou=Users,{{ auth_ldap_domain_ldap }}" read
-    by dn.exact,expand="uid=$1,cn=gssapi,cn=auth" read
-    by dn.exact="cn=krbbind,{{ auth_ldap_domain_ldap }}" write
-    by group.exact="cn=sys_ldap_readers,ou=Groups,{{ auth_ldap_domain_ldap }}" read
-    by * none
-  - >-
-    {3}to dn.subtree="ou=Users,{{ auth_ldap_domain_ldap }}"
-    by dn.exact="cn=krbbind,{{ auth_ldap_domain_ldap }}" write
-    by group.exact="cn=sys_ldap_readers,ou=Groups,{{ auth_ldap_domain_ldap }}" read
-    by * none
-  - >-
-    {4}to dn.subtree="cn=Kerberos,{{ auth_ldap_domain_ldap }}"
-    by dn.exact="cn=krbbind,{{ auth_ldap_domain_ldap }}" manage
-    by * none
-  - >-
-    {5}to dn.subtree="cn=DNS,{{ auth_ldap_domain_ldap }}"
-    by dn.regex="uid=dns/[^,]+.example.org,cn=gssapi,cn=auth" manage
-    by * none
-  - >-
-    {6}to *
-    by group.exact="cn=sys_ldap_readers,ou=Groups,{{ auth_ldap_domain_ldap }}" read
-    by * none
+# Which kerberos services to support (service in service/host@REALM). Each
+# get's it's own OU, thats why you need to list them
+auth_ldap_services:
+  - dns
+  - ldap
+  - host
 
-auth_ldap_config_permissions:
-  - >-
-    {0}to *
-    by dn.exact="cn=admin,{{ auth_ldap_domain_ldap }}" manage
-    by dn.exact=gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth manage
-    by * break
+# LDAP containers to create for services. Even if you don't use DNS it doesn't
+# hurt to create it's base.
+auth_ldap_service_bases:
+  - name: dns
+    objectClass:
+      - top
+      - nsContainer
 
-# System user, do not touch!
+# Service accounts and keytabs to create. The first two are mandatory, the DNS
+# one can be removed if you're not going to use it.
+auth_ldap_service_accounts:
+  - host: "{{ ansible_fqdn }}"
+    service: ldap
+    keytab: /etc/dirsrv/ds.keytab
+    ktowner: dirsrv
+    ktgroup: root
+    ktmode: "0640"
+  - host: "{{ ansible_fqdn }}"
+    service: host
+    keytab: /etc/krb5.keytab
+    ktowner: dirsrv
+    ktgroup: root
+    ktmode: "0600"
+  - host: "{{ ansible_fqdn }}"
+    service: DNS
+    keytab: /etc/bind/ldap.keytab
+    ktowner: bind
+    ktgroup: root
+    ktmode: "0640"
+
+# Permissions. This should give you a sensible default, tweak as needed
+auth_ldap_permissions:
+  - target: "{{ auth_ldap_domain_ldap }}"
+    acls:
+      - (target="ldap:///{{ auth_ldap_domain_ldap }}")(targetattr = "cn || dn || uid || objectClass")(targetfilter = "(|(objectClass=dcObject)(objectClass=organizationalUnit))")(version 3.0; acl "Allow everybody searches at root of tree"; allow(read, search, compare) userdn="ldap:///anyone";)
+  - target: "ou=Users,{{ auth_ldap_domain_ldap }}"
+    acls:
+      - (target="ldap:///ou=Users,{{ auth_ldap_domain_ldap }}")(targetattr = "*")(version 3.0; acl "Allow kerberos service account access to sensitive user fields"; allow(all) userdn="ldap:///cn=krbbind,ou=TechnicalUsers,{{ auth_ldap_domain_ldap }}";)
+      - (target="ldap:///ou=Users,{{ auth_ldap_domain_ldap }}")(targetattr = "dn || krbLastSuccessfulAuth || krbLastPwdChange || krbPasswordExpiration || krbLoginFailedCount || uid || objectClass || uidNumber || gidNumber || sn || homeDirectory || mail || givenName || cn")(version 3.0; acl "Allow users to read their own attributes"; allow(search, read, compare) userdn="ldap:///self";)
+      - (target="ldap:///ou=Users,{{ auth_ldap_domain_ldap }}")(targetattr = "dn || krbLastSuccessfulAuth || krbLastPwdChange || krbPasswordExpiration || krbLoginFailedCount || uid || objectClass || uidNumber || gidNumber || sn || homeDirectory || mail || givenName || cn")(version 3.0; acl "Allow LDAPReaders Group to read user attributes"; allow(search, read, compare) groupdn="ldap:///cn=sys_ldap_readers,ou=Groups,{{ auth_ldap_domain_ldap }}";)
+  - target: "ou=TechnicalUsers,{{ auth_ldap_domain_ldap }}"
+    acls:
+      - (target="ldap:///ou=TechnicalUsers,{{ auth_ldap_domain_ldap }}")(targetattr = "*")(version 3.0; acl "Allow kerberos service account access to sensitive user fields"; allow(all) userdn="ldap:///cn=krbbind,ou=TechnicalUsers,{{ auth_ldap_domain_ldap }}";)
+      - (target="ldap:///ou=TechnicalUsers,{{ auth_ldap_domain_ldap }}")(targetattr = "dn || krbLastSuccessfulAuth || krbLastPwdChange || krbPasswordExpiration || krbLoginFailedCount || uid || objectClass || uidNumber || gidNumber || sn || homeDirectory || mail || givenName || cn")(version 3.0; acl "Allow LDAPReaders Group to read technical user attributes"; allow(search, read, compare) groupdn="ldap:///cn=sys_ldap_readers,ou=Groups,{{ auth_ldap_domain_ldap }}";)
+  - target: "ou=Groups,{{ auth_ldap_domain_ldap }}"
+    acls:
+      - (target="ldap:///ou=Groups,{{ auth_ldap_domain_ldap }}")(targetattr = "dn || objectClass || cn || member || memberUid || description || uniqueMember")(version 3.0; acl "Allow LDAPReaders Group to read group membership"; allow(search, read, compare) groupdn="ldap:///cn=sys_ldap_readers,ou=Groups,{{ auth_ldap_domain_ldap }}";)
+      - (target="ldap:///ou=Groups,{{ auth_ldap_domain_ldap }}")(targetattr = "dn || objectClass || cn || member || memberUid || description || uniqueMember")(version 3.0; acl "Allow users to read groups"; allow(search, read, compare) userdn="ldap:///uid=*,ou=Users,{{ auth_ldap_domain_ldap }}";)
+  - target: "cn=Kerberos,{{ auth_ldap_domain_ldap }}"
+    acls:
+      - (targetattr=*)(version 3.0; acl "Allow kerberos service account access to kerberos subtree"; allow(all) userdn="ldap:///cn=krbbind,ou=TechnicalUsers,{{ auth_ldap_domain_ldap }}";)
+  - target: "cn=dns,{{ auth_ldap_domain_ldap }}"
+    acls:
+      - (targetattr=*)(version 3.0; acl "Allow DNS service accounts access to DNS subtree"; allow(all) userdn="ldap:///uid=*,ou=dns,ou=TechnicalUsers,{{ auth_ldap_domain_ldap }}";)
+
+# System user, do not touch (except to add more)!
 auth_ldap_system_users:
   - name: krbbind
     id: krbbind
-    uid: 10001
+    uid: 10000
     gid: 1000
     initialPassword: "{{ auth_kerberos_ldap_password_ldap }}"

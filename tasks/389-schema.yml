@@ -1,0 +1,37 @@
+---
+  - name: Check whether {{ item.name }} schema has been imported
+    expect:
+      command: /bin/bash -c "ldapsearch -Z -x -W -D cn=Directory\ Manager -b cn=schema objectClasses | grep {{ item.checkattr }}"
+      responses:
+        (Enter LDAP Password): "{{ auth_ldap_admin_pwd }}"
+    no_log: true
+    register: check
+    failed_when: False
+    changed_when: False
+
+  - name: Create ansible schema dir
+    become: True
+    file:
+      path: /etc/ldap/ansible
+      owner: root
+      group: root
+      mode: 0640
+      state: directory
+
+  - name: Upload {{ item.name }} schema
+    become: True
+    copy:
+      src: "{{ item.file }}"
+      dest: "/etc/ldap/ansible/{{ item.file }}"
+      owner: root
+      group: root
+      mode: 0640
+
+  - name: Import {{ item.name }} schema
+    when: check.rc == 1
+    become: True
+    expect:
+      command: /bin/bash -c "/usr/bin/ldapmodify -Z -x -D cn=Directory\ Manager -W < /etc/ldap/ansible/{{ item.file }}"
+      responses:
+        (Enter LDAP Password): "{{ auth_ldap_admin_pwd }}"
+    no_log: true
