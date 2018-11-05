@@ -27,6 +27,7 @@ This role sets up 389ds in multi-master mode.
 | `auth_ldap_service_bases` | (see defaults/main.yml) | LDAP containers to create for services |
 | `auth_ldap_service_accounts` | (see defaults/main.yml) | Kerberos services to generate. This will also write out a keytab for each service. |
 | `auth_ldap_permissions` | (see defaults/main.yml) | ACIs to set on the directory |
+| `auth_kerberos_admin_privs` | `[]` | Kerberos principals to grant administrative permissions to (see defaults/main.yml for format) |
 
 Users can be created by putting them into `auth_ldap_users` as a dict with the following format:
 ```

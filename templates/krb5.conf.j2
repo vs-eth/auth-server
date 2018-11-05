@@ -32,6 +32,7 @@
 	{{ auth_ldap_domain|upper }} = {
 		pkinit_anchors = FILE:/etc/ldap/ca.pem
 		pkinit_eku_checking = none
+		admin_server = {{ ansible_fqdn }}
 {% for host in groups[auth_ldap_group] %}
 		pkinit_kdc_hostname = {{ hostvars[host]['ansible_fqdn'] }}
 {% endfor %}

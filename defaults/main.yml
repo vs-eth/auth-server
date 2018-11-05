@@ -16,6 +16,11 @@ auth_ldap_init_source: False
 # Kerberos admin credentials (you need to change these)
 auth_kerberos_ldap_password: False
 auth_kerberos_database_master_key: False
+# Principals to be granted admin rights
+auth_kerberos_admin_privs: []
+# - principal: foo@EXAMPLE.ORG
+#   privileges: '*'
+#   target: '*'
 
 # Group that all LDAP/kerberos servers are in (you probably need to change this)
 auth_ldap_group: core

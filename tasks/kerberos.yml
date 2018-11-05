@@ -102,6 +102,19 @@
     run_once: True
     command: kadmin.local -q 'addprinc -randkey WELLKNOWN/ANONYMOUS'
 
+  - name: Grant admin permissions to specific principals
+    become: True
+    when: auth_kerberos_admin_privs != []
+    template:
+      src: kadm5.acl.j2
+      dest: /etc/krb5kdc/kadm5.acl
+      owner: root
+      group: root
+      mode: 0644
+    notify:
+      - restart kdc
+      - restart kadmind
+
   - include_tasks: serviceaccount.yml
     with_items: "{{ auth_ldap_service_accounts }}"
 
