@@ -1,4 +1,7 @@
 # Auth-Server
+[![CircleCI status](https://img.shields.io/circleci/project/github/uubk/auth-server/master.svg?style=shield)](https://circleci.com/gh/uubk/auth-server/tree/master)
+![License](https://img.shields.io/github/license/uubk/auth-server.svg?style=popout)
+
 Set up 389ds and MIT Kerberos to authenticate users. Tested on Debian 9.
 
 ## Description

@@ -35,6 +35,7 @@
         mail: "root@{{ auth_ldap_domain }}"
     with_items:
       - "{{ auth_ldap_system_users }}"
+    no_log: True
 
   - name: Create LDAP reader group
     run_once: true
