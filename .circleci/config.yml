@@ -5,4 +5,5 @@ jobs:
       - image: uubk/ansible-standards:latest
     steps:
       - checkout
+      - run: ansible-lint .
       - run: git ls-files | xargs ansible-review
