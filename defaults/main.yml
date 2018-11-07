@@ -62,20 +62,17 @@ auth_ldap_service_bases:
 # Service accounts and keytabs to create. The first two are mandatory, the DNS
 # one can be removed if you're not going to use it.
 auth_ldap_service_accounts:
-  - host: "{{ ansible_fqdn }}"
-    service: ldap
+  - service: ldap
     keytab: /etc/dirsrv/ds.keytab
     ktowner: dirsrv
     ktgroup: root
     ktmode: "0640"
-  - host: "{{ ansible_fqdn }}"
-    service: host
+  - service: host
     keytab: /etc/krb5.keytab
     ktowner: dirsrv
     ktgroup: root
     ktmode: "0600"
-  - host: "{{ ansible_fqdn }}"
-    service: DNS
+  - service: DNS
     keytab: /etc/bind/ldap.keytab
     ktowner: bind
     ktgroup: root
