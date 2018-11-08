@@ -196,6 +196,20 @@
       - Groups
       - TechnicalUsers
 
+  - include_tasks: 389-schema.yml
+    tags:
+      - ldap
+    with_items:
+      - name: Kerberos
+        file: kerberos.ldif
+        checkattr: krbPrincipalName
+      - name: DNS
+        file: dns.ldif
+        checkattr: idnsTemplateObject
+      - name: Mail
+        file: mail.ldif
+        checkattr: postfixConfiguration
+
   - name: Configure LDAP service containers
     ldap_entry:
       dn: "ou={{ item }},ou=TechnicalUsers,{{ auth_ldap_domain_ldap }}"
@@ -234,7 +248,7 @@
       owner: root
       group: root
       mode: 0644
-      notify: restart haproxy
+    notify: restart haproxy
 
   - name: Enable Retro Changelog Plugin
     ldap_attr:
@@ -251,3 +265,5 @@
       nsslapd-exclude-suffix: 'cn=config'
     notify: restart dirsrv
 
+  # If we changed the haproxy config, this will restart the server and activate it
+  - meta: flush_handlers

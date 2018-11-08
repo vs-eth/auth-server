@@ -26,17 +26,6 @@
     tags:
       - ldap
 
-  - include_tasks: 389-schema.yml
-    tags:
-      - ldap
-    with_items:
-      - name: Kerberos
-        file: kerberos.ldif
-        checkattr: krbPrincipalName
-      - name: DNS
-        file: dns.ldif
-        checkattr: idnsTemplateObject
-
   - import_tasks: 389-replication.yml
     tags:
       - ldap

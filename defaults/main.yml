@@ -58,6 +58,7 @@ auth_ldap_service_bases:
   - name: postfixconfig
     objectClass:
       - top
+      - postfixConfiguration
 
 # Service accounts and keytabs to create. The first two are mandatory, the DNS
 # one can be removed if you're not going to use it.

@@ -1,0 +1,111 @@
+dn: cn=schema
+changetype: modify
+add: attributetypes
+attributetypes: ( 1.3.6.1.4.1.25725.1.1.1 NAME 'primaryMail' 
+ DESC 'Canonical mail address for this user' 
+ SUP mail 
+ EQUALITY caseIgnoreIA5Match 
+ SUBSTR caseIgnoreIA5SubstringsMatch 
+ SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 
+ SINGLE-VALUE )
+
+dn: cn=schema
+changetype: modify
+add: attributetypes
+attributetypes: ( 1.3.6.1.4.1.25725.1.1.2 NAME 'alias' 
+ DESC 'Mail alias for this user' 
+ SUP mail 
+ EQUALITY caseIgnoreIA5Match 
+ SUBSTR caseIgnoreIA5SubstringsMatch 
+ SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 )
+
+dn: cn=schema
+changetype: modify
+add: attributetypes
+attributetypes: ( 1.3.6.1.4.1.25725.1.1.3 NAME 'sendAlias' 
+ DESC 'Allowed sender alias for this user' 
+ EQUALITY caseIgnoreIA5Match 
+ SUBSTR caseIgnoreIA5SubstringsMatch 
+ SYNTAX 1.3.6.1.4.1.1466.115.121.1.26 )
+
+dn: cn=schema
+changetype: modify
+add: attributetypes
+attributetypes: ( 1.3.6.1.4.1.25725.1.1.4 NAME 'virtualDomain' 
+ DESC 'Postfix virtual domain' 
+ EQUALITY caseIgnoreMatch 
+ SUBSTR caseIgnoreSubstringsMatch 
+ SYNTAX 1.3.6.1.4.1.1466.115.121.1.44 )
+
+dn: cn=schema
+changetype: modify
+add: attributetypes
+attributetypes: ( 1.3.6.1.4.1.25725.1.1.5 NAME 'mailboxQuota' 
+ DESC 'Mailbox quota rule for this user in Dovecot notation' 
+ EQUALITY caseIgnoreMatch 
+ SUBSTR caseIgnoreSubstringsMatch 
+ SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 
+ SINGLE-VALUE )
+
+dn: cn=schema
+changetype: modify
+add: attributetypes
+attributetypes: ( 1.3.6.1.4.1.25725.1.1.6 NAME 'canSendExternally' 
+ DESC 'Allow sending mail to external destinations' 
+ EQUALITY booleanMatch 
+ SYNTAX 1.3.6.1.4.1.1466.115.121.1.7 
+ SINGLE-VALUE )
+
+dn: cn=schema
+changetype: modify
+add: attributetypes
+attributetypes: ( 1.3.6.1.4.1.25725.1.1.7 NAME 'mailboxTransport' 
+ DESC 'Postfix mailbox transport method' 
+ EQUALITY caseIgnoreMatch 
+ SUBSTR caseIgnoreSubstringsMatch 
+ SYNTAX 1.3.6.1.4.1.1466.115.121.1.15 
+ SINGLE-VALUE )
+
+dn: cn=schema
+changetype: modify
+add: attributetypes
+attributetypes: ( 1.3.6.1.4.1.25725.1.1.8 NAME 'canReceiveExternally' 
+ DESC 'Allow receiving mail from external destinations' 
+ EQUALITY booleanMatch 
+ SYNTAX 1.3.6.1.4.1.1466.115.121.1.7 
+ SINGLE-VALUE )
+
+dn: cn=schema
+changetype: modify
+add: objectClasses
+objectClasses: ( 1.3.6.1.4.1.25725.1.2.1 NAME 'mailboxPerson' 
+  DESC 'User who also has a mailbox' 
+  SUP top AUXILIARY 
+  MUST ( primaryMail $ mailboxQuota $ canSendExternally $ canReceiveExternally $ mailboxTransport ) 
+  MAY ( alias $ sendAlias ) )
+
+dn: cn=schema
+changetype: modify
+add: objectClasses
+objectClasses: ( 1.3.6.1.4.1.25725.1.2.2 NAME 'mailenabledGroup' 
+  DESC 'Group used as a mail alias' 
+  SUP top AUXILIARY 
+  MUST ( alias ) )
+
+dn: cn=schema
+changetype: modify
+add: objectClasses
+objectClasses: ( 1.3.6.1.4.1.25725.1.2.3 NAME 'postfixConfiguration' 
+  DESC 'Group used as a mail alias' 
+  SUP top STRUCTURAL
+  MUST ( cn ) 
+  MAY ( virtualDomain ) )
+
+dn: cn=schema
+changetype: modify
+add: objectClasses
+objectClasses: ( 1.3.6.1.4.1.25725.1.2.4 NAME 'systemMailbox' 
+  DESC 'System mailbox, does not directly belong to an user' 
+  SUP top STRUCTURAL 
+  MUST ( primaryMail $ mailboxQuota $ canSendExternally $ canReceiveExternally $ mailboxTransport ) 
+  MAY ( alias $ sendAlias $ uid $ cn ) )
