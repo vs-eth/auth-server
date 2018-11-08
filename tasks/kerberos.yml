@@ -47,6 +47,7 @@
 
   - name: Create Kerberos realm
     run_once: true
+    become: True
     when: krbrealmcheck.rc == 1
     expect:
       command: kdb5_ldap_util -D "cn=Directory Manager" create -subtrees "ou=Users,{{ auth_ldap_domain_ldap }}:ou=TechnicalUsers,{{ auth_ldap_domain_ldap }}" -r "{{ auth_ldap_domain|upper }}" -s
