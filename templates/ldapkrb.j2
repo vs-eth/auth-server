@@ -1,5 +1,5 @@
 # PAM config for auth passthrough from LDAP to Kerberos
-auth      required   pam_krb5.so
-session   required   pam_krb5.so
-account   required   pam_krb5.so
-password  required   pam_krb5.so
+auth      required   pam_krb5.so ignore_k5login
+session   required   pam_krb5.so ignore_k5login
+account   required   pam_krb5.so ignore_k5login
+password  required   pam_krb5.so ignore_k5login
