@@ -20,3 +20,10 @@
       name: "dirsrv@{{ auth_ldap_shortname }}"
       state: restarted
       enabled: yes
+
+  - name: restart haproxy
+    become: True
+    service:
+      name: haproxy
+      state: restarted
+      enabled: yes
