@@ -222,7 +222,7 @@
   - name: Configure LDAP service bases
     ldap_entry:
       dn: "cn={{ item.name }},{{ auth_ldap_domain_ldap }}"
-      server_uri: "{{ bind_ldap_ansible_url }}"
+      server_uri: "{{ auth_ldap_ansible_url }}"
       bind_dn: "cn=Directory Manager"
       bind_pw: "{{ auth_ldap_admin_pwd }}"
       objectClass: "{{ item.objectClass }}"
