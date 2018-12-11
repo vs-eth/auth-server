@@ -116,3 +116,6 @@ auth_ldap_system_users:
     uid: 10000
     gid: 1000
     initialPassword: "{{ auth_kerberos_ldap_password }}"
+
+# Whether to actually store the pam kerberos passthrough config
+auth_ldap_store_pam: True

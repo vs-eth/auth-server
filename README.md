@@ -31,6 +31,7 @@ This role sets up 389ds in multi-master mode.
 | `auth_ldap_service_accounts` | (see defaults/main.yml) | Kerberos services to generate. This will also write out a keytab for each service. |
 | `auth_ldap_permissions` | (see defaults/main.yml) | ACIs to set on the directory |
 | `auth_kerberos_admin_privs` | `[]` | Kerberos principals to grant administrative permissions to (see defaults/main.yml for format) |
+| `auth_ldap_store_pam` | `True` | Whether to actually store the generated 389ds PAM config. Useful if you want to customize it using another role |
 
 Users can be created by putting them into `auth_ldap_users` as a dict with the following format:
 ```
