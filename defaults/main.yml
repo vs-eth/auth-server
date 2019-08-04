@@ -74,7 +74,7 @@ auth_ldap_service_accounts:
     ktgroup: root
     ktmode: "0600"
   - service: DNS
-    keytab: /etc/bind/ldap.keytab
+    keytab: /etc/bind/krb5.keytab
     ktowner: bind
     ktgroup: root
     ktmode: "0640"
