@@ -3,6 +3,8 @@
 auth_ldap_domain: None
 auth_ldap_domain_ldap: None
 auth_ldap_domain_suffix: None
+# If you have subdomains with hosts, you might want to add them here
+auth_ldap_domain_subdomains: []
 
 # LDAP admin credentials (you need to change these)
 auth_ldap_admin_pwd: None

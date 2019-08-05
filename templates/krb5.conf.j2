@@ -25,3 +25,6 @@
 
 [domain_realm]
 	.{{ auth_ldap_domain }} = {{ auth_ldap_domain|upper }}
+{% for domain in auth_ldap_domain_subdomains %}
+	.{{ domain|lower }} = {{ auth_ldap_domain|upper }}
+{% endfor %}
