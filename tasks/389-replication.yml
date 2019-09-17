@@ -69,6 +69,7 @@
         nsds5replicaroot: "{{ auth_ldap_domain_ldap }}"
         description: "agreement to replicate {{ item[1] }} to {{ item[0] }}"
         nsds5replicacredentials: "{{ auth_ldap_sync_pwd }}"
+        nsds5replicatedattributelist: "{% if auth_ldap_use_memberof_plugin %}(objectclass=*) $ EXCLUDE memberof{% else %}(objectclass=*){% endif %}"
     when: (item[0] != item[1]) and (item[1] == ansible_fqdn)
     with_cartesian:
       - "{{ groups[auth_ldap_group] }}"

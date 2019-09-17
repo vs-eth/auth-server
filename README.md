@@ -33,6 +33,7 @@ This role sets up 389ds in multi-master mode.
 | `auth_kerberos_admin_privs` | `[]` | Kerberos principals to grant administrative permissions to (see defaults/main.yml for format) |
 | `auth_ldap_store_pam` | `True` | Whether to actually store the generated 389ds PAM config. Useful if you want to customize it using another role |
 |`auth_kerberos_curves` | `edwards25519` | Curves to use for kerberos SPAKE |
+| `uth_ldap_use_memberof_plugin` | `False` | Whether to enable the `memberOf` LDAP plugin. |
 
 Users can be created by putting them into `auth_ldap_users` as a dict with the following format:
 ```
