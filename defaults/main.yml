@@ -85,7 +85,7 @@ auth_ldap_service_accounts:
     ktmode: "0640"
 
 # Permissions. This should give you a sensible default, tweak as needed
-auth_ldap_noncritical_filter: "dn || krbLastSuccessfulAuth || krbLastPwdChange || krbPasswordExpiration || krbLoginFailedCount || uid || objectClass || uidNumber || gidNumber || sn || homeDirectory || mail || givenName || cn || sendAlias || alias || mailboxTransport || canReceiveExternally || canSendExternally || mailboxQuota || primaryMail"
+auth_ldap_noncritical_filter: "dn || krbLastSuccessfulAuth || krbLastPwdChange || krbPasswordExpiration || krbLoginFailedCount || uid || objectClass || uidNumber || gidNumber || sn || homeDirectory || mail || givenName || cn || sendAlias || alias || mailboxTransport || canReceiveExternally || canSendExternally || mailboxQuota || primaryMail || memberOf"
 auth_ldap_noncritical_group_filter: "dn || objectClass || cn || member || memberUid || description || uniqueMember || alias || sendAlias"
 auth_ldap_permissions:
   - target: "{{ auth_ldap_domain_ldap }}"
