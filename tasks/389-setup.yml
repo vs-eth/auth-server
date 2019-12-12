@@ -44,22 +44,33 @@
   - name: Install server certificate
     become: True
     when: certsrvout.rc == 1
-    command: 'pk12util -n"Server Certificate" -i server.pfx -d"/etc/dirsrv/slapd-{{ auth_ldap_shortname }}" -K password -W Password -name servercert'
+    command: 'pk12util -i server.pfx -d"/etc/dirsrv/slapd-{{ auth_ldap_shortname }}" -K password -W Password -name Server-Cert -n Server-Cert'
     args:
       chdir: /etc/dirsrv
     notify: restart dirsrv
+
+    # Depending on, I  don't know, the state of the moon or something, pk12util
+    # will sometimes ignore the -n argument and name the cert after the CN.
+    # Depending on the state of the sun or something, 389-ds will deem to
+    # consider this being a valid certificate or not (the docs say that it only
+    # consideres certificates named after nsSSLPersonalitySSL, which would have
+    # been the CN when I wrote this, but the docs are definitely wrong). Fix
+    # this by always renaming the certificate to 'Server-Cert', forcing
+    # nsSSLPersonalitySSL to the same value and ignoring errors...
+  - name: Rename the server certificate in case pk12util decided to ignore it's arguments again
+    become: True
+    when: certsrvout.rc == 1
+    command: 'certutil --rename -d/etc/dirsrv/slapd-core-fal -n "{{ ansible_fqdn }}" --new-n Server-Cert'
+    args:
+      chdir: /etc/dirsrv
+    notify: restart dirsrv
+    failed_when: False
 
   - name: Get CA certificate nickname
     become: True
     when: certsrvout.rc == 1
     shell: "certutil -L -d\"/etc/dirsrv/slapd-{{ auth_ldap_shortname }}\" | grep PKI | sed -E 's/  .*//g'"
     register: caout
-
-  - name: Trust CA certificate for CA purposed
-    become: True
-    when: certsrvout.rc == 1
-    command: 'certutil -M -d"/etc/dirsrv/slapd-{{ auth_ldap_shortname }}" -n "{{ caout.stdout }}" -t "CT,,"'
-    notify: restart dirsrv
 
   - name: Store certstore password in filesystem
     become: True
@@ -69,6 +80,22 @@
       owner: dirsrv
       group: root
       mode: 0600
+    notify: restart dirsrv
+
+  - name: Store certstore password in filesystem (for certutil)
+    become: True
+    copy:
+      content: 'password'
+      dest: "/etc/dirsrv/slapd-{{ auth_ldap_shortname }}/pin-certutil.txt"
+      owner: dirsrv
+      group: root
+      mode: 0600
+    notify: restart dirsrv
+
+  - name: Trust CA certificate for CA purposed
+    become: True
+    when: certsrvout.rc == 1
+    command: 'certutil -M -d"/etc/dirsrv/slapd-{{ auth_ldap_shortname }}" -n "{{ caout.stdout }}" -t "CT,," -f /etc/dirsrv/slapd-{{ auth_ldap_shortname }}/pin-certutil.txt'
     notify: restart dirsrv
 
   - name: Remove setup files
@@ -94,7 +121,7 @@
       bind_pw: "{{ auth_ldap_admin_pwd }}"
       state: present
       attributes:
-        nsSSLPersonalitySSL: "{{ ansible_fqdn }}"
+        nsSSLPersonalitySSL: "Server-Cert" # Used to be the fqdn but got ignored sometimes...
         nsSSLActivation: on
         nsSSLToken: "internal (software)"
         cn: RSA
