@@ -26,6 +26,6 @@
     run_once: true
     when: userchanged.changed
     become: True
-    command: kadmin.local addprinc -randkey -x dn="uid={{ item.id }},ou=Users,{{ auth_ldap_domain_ldap }}" +requires_preauth "{{ item.id }}"
+    command: kadmin.local addprinc -randkey -x dn="uid={{ item.id }},ou=Users,{{ auth_ldap_domain_ldap }}" +requires_preauth -allow_svr "{{ item.id }}"
     tags:
       - skip_ansible_lint

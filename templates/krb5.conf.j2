@@ -12,11 +12,11 @@
 	permitted_enctypes = {{ auth_kerberos_enctypes }}
 	default_tkt_enctypes = {{ auth_kerberos_enctypes }}
 	default_tgs_enctypes = {{ auth_kerberos_enctypes }}
+	spake_preauth_groups = {{ auth_kerberos_curves }}
 
 [realms]
 	{{ auth_ldap_domain|upper }} = {
 		pkinit_anchors = FILE:/etc/ldap/ca.pem
-		pkinit_eku_checking = none
 		admin_server = {{ ansible_fqdn }}
 {% for host in groups[auth_ldap_group] %}
 		pkinit_kdc_hostname = {{ hostvars[host]['ansible_fqdn'] }}

@@ -36,6 +36,9 @@ auth_ldap_ssl_ca_path: /etc/ldap/ca.pem
 # Enctypes for recent kerberos
 auth_kerberos_enctypes: "aes256-cts-hmac-sha384-192 aes128-cts-hmac-sha256-128 aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96"
 
+# Elliptic curves for SPAKE
+auth_kerberos_curves: "edwards25519"
+
 # Users to create
 auth_ldap_users: []
 
