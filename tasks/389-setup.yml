@@ -22,7 +22,7 @@
 
   - name: Check whether server cert is installed
     become: True
-    shell: certutil -d "/etc/dirsrv/slapd-{{ auth_ldap_shortname }}" -L | grep "{{ ansible_fqdn }}"
+    shell: certutil -d "/etc/dirsrv/slapd-{{ auth_ldap_shortname }}" -L | grep -E ''{{ ansible_fqdn }}|Server-Cert''
     register: certsrvout
     failed_when: False
     changed_when: False
