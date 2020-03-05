@@ -9,7 +9,7 @@ frontend {{ item }}-ldap-front
 backend {{ item }}-ldap-back
         mode tcp
         option ldap-check
-        server remote {{ item }}:60389 ssl crt /etc/dirsrv/client.pem ca-file /etc/dirsrv/ca.pem verify required check check-ssl
+        server remote {{ hostvars[item]['ansible_fqdn'] }}:60389 ssl crt /etc/dirsrv/client.pem ca-file /etc/dirsrv/ca.pem verify required check check-ssl
 
 {% endif %}
 {% endfor %}
