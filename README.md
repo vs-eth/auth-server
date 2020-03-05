@@ -53,7 +53,7 @@ After running the playbook, use `kadmin.local` on one of the servers and do `cpw
 ### Enabling memberOf plugin
 If you enable the memberOf plugin by setting the `auth_ldap_user_memberof_plugin` variable to true, you need to pay attention to a few points:
 
-* The user objects that should have the memberOf need to have the `objectClass` `inetperson` set. More information about `inetperson` can be found [here](https://msg.wikidoc.info/index.php/InetUser_LDAP_Object_Class#targetText=InetUser%20LDAP%20Object%20Class&targetText=For%20Mail%3A,for%20creating%20a%20mail%20account.&targetText=Group%20entries%20may%20be%20extended%20with%20this%20class.).
+* The user objects that should have the memberOf need to have the `objectClass` `inetUser` set. More information about `inetUser` can be found [here](https://msg.wikidoc.info/index.php/InetUser_LDAP_Object_Class#targetText=InetUser%20LDAP%20Object%20Class&targetText=For%20Mail%3A,for%20creating%20a%20mail%20account.&targetText=Group%20entries%20may%20be%20extended%20with%20this%20class.).
 * If you're enabling memberOf on an existing database you will have to do an initial sync of the memberOf field, as described in section 5 [here](https://access.redhat.com/solutions/28282).
 
 ## License

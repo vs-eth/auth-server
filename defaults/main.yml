@@ -122,6 +122,11 @@ auth_ldap_system_users:
     gid: 1000
     initialPassword: "{{ auth_kerberos_ldap_password }}"
 
+auth_ldap_user_objectclasses:
+  - posixAccount
+  - top
+  - inetOrgPerson
+
 # Whether to actually store the pam kerberos passthrough config
 auth_ldap_store_pam: True
 
