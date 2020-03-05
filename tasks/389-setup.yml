@@ -22,7 +22,7 @@
 
   - name: Check whether server cert is installed
     become: True
-    shell: certutil -d "/etc/dirsrv/slapd-{{ auth_ldap_shortname }}" -L | grep -E ''{{ ansible_fqdn }}|Server-Cert''
+    shell: certutil -d "/etc/dirsrv/slapd-{{ auth_ldap_shortname }}" -L | grep -E '{{ ansible_fqdn }}|Server-Cert'
     register: certsrvout
     failed_when: False
     changed_when: False
@@ -60,7 +60,7 @@
   - name: Rename the server certificate in case pk12util decided to ignore it's arguments again
     become: True
     when: certsrvout.rc == 1
-    command: 'certutil --rename -d/etc/dirsrv/slapd-core-fal -n "{{ ansible_fqdn }}" --new-n Server-Cert'
+    command: 'certutil --rename -d/etc/dirsrv/slapd-{{ auth_ldap_shortname }} -n "{{ ansible_fqdn }}" --new-n Server-Cert'
     args:
       chdir: /etc/dirsrv
     notify: restart dirsrv
