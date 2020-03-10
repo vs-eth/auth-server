@@ -122,6 +122,7 @@ auth_ldap_system_users:
     gid: 1000
     initialPassword: "{{ auth_kerberos_ldap_password }}"
 
+# `inetUser` is added, too, if the memberOf plugin is enabled
 auth_ldap_user_objectclasses:
   - posixAccount
   - top
