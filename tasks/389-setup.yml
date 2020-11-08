@@ -163,7 +163,7 @@
 
   - name: Ensure that ldap config directory exists
     become: True
-    when: auth_ldap_have_tls
+    when: auth_ldap_have_tls | bool
     file:
       path: /etc/ldap
       state: directory
@@ -173,7 +173,7 @@
 
   - name: Copy TLS CA to ldap config directory
     become: True
-    when: auth_ldap_have_tls
+    when: auth_ldap_have_tls | bool
     copy:
       src: /etc/dirsrv/ca.pem
       dest: /etc/ldap/ca.pem
@@ -184,7 +184,7 @@
 
   - name: Configure TLS CA in ldap.conf
     become: True
-    when: auth_ldap_have_tls
+    when: auth_ldap_have_tls | bool
     template:
       src: ldap.conf.j2
       dest: /etc/ldap/ldap.conf
@@ -193,7 +193,7 @@
       mode: 0644
 
   - name: Set URL to SSL
-    when: auth_ldap_have_tls
+    when: auth_ldap_have_tls | bool
     set_fact:
       auth_ldap_ansible_url: "ldaps://{{ ansible_fqdn }}"
 
@@ -258,7 +258,7 @@
     with_items: "{{ auth_ldap_service_bases }}"
 
   - name: Assemble HAProxy certificates
-    when: auth_ldap_have_tls
+    when: auth_ldap_have_tls | bool
     become: True
     shell: cat /etc/dirsrv/{{ item }}.crt /etc/dirsrv/{{ item }}.key > /etc/dirsrv/{{ item }}.pem && chown root:root /etc/dirsrv/{{ item }}.pem && chmod 600 /etc/dirsrv/{{ item }}.pem
     changed_when: False
@@ -267,7 +267,7 @@
       - client
 
   - name: Add HAproxy dropin
-    when: auth_ldap_have_tls
+    when: auth_ldap_have_tls | bool
     become: True
     template:
       src: haproxy-dropin.conf.j2
