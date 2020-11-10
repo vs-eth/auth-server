@@ -197,7 +197,7 @@
 
   - name: Configure ldapkrb pam service
     become: True
-    when: auth_ldap_store_pam
+    when: auth_ldap_store_pam | bool
     template:
       src: ldapkrb.j2
       dest: /etc/pam.d/ldapkrb
