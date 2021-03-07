@@ -37,16 +37,12 @@
   - name: Concat certificates
     become: True
     when: certsrvout.rc == 1
-    command: 'openssl pkcs12 -export -out server.pfx -inkey server.key -in server.crt -certfile ca.pem -passout pass:Password'
-    args:
-      chdir: /etc/dirsrv
+    command: 'openssl pkcs12 -export -out /etc/dirsrv/server.pfx -inkey {{ auth_ldap_ssl_key_path }} -in {{ auth_ldap_ssl_cert_path }} -certfile {{ auth_ldap_ssl_ca_path }} -passout pass:Password'
 
   - name: Install server certificate
     become: True
     when: certsrvout.rc == 1
-    command: 'pk12util -i server.pfx -d"/etc/dirsrv/slapd-{{ auth_ldap_shortname }}" -K password -W Password -name Server-Cert -n Server-Cert'
-    args:
-      chdir: /etc/dirsrv
+    command: 'pk12util -i /etc/dirsrv/server.pfx -d"/etc/dirsrv/slapd-{{ auth_ldap_shortname }}" -K password -W Password -name Server-Cert -n Server-Cert'
     notify: restart dirsrv
 
     # Depending on, I  don't know, the state of the moon or something, pk12util
@@ -60,7 +56,7 @@
   - name: Rename the server certificate in case pk12util decided to ignore it's arguments again
     become: True
     when: certsrvout.rc == 1
-    command: 'certutil --rename -d/etc/dirsrv/slapd-{{ auth_ldap_shortname }} -n "{{ ansible_fqdn }}" --new-n Server-Cert'
+    command: 'certutil --rename -d/etc/dirsrv/slapd-{{ auth_ldap_shortname }} -n "{{ auth_ldap_ssl_cn }}" --new-n Server-Cert'
     args:
       chdir: /etc/dirsrv
     notify: restart dirsrv
@@ -69,7 +65,7 @@
   - name: Get CA certificate nickname
     become: True
     when: certsrvout.rc == 1
-    shell: "certutil -L -d\"/etc/dirsrv/slapd-{{ auth_ldap_shortname }}\" | grep PKI | sed -E 's/  .*//g'"
+    shell: "certutil -L -d\"/etc/dirsrv/slapd-{{ auth_ldap_shortname }}\" | grep {{ auth_ldap_ssl_desc }} | sed -E 's/  .*//g'"
     register: caout
 
   - name: Store certstore password in filesystem
@@ -175,7 +171,7 @@
     become: True
     when: auth_ldap_have_tls | bool
     copy:
-      src: /etc/dirsrv/ca.pem
+      src: "{{ auth_ldap_ssl_ca_path }}"
       dest: /etc/ldap/ca.pem
       owner: root
       group: root
