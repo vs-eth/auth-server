@@ -37,6 +37,7 @@ auth_ldap_have_tls: True
 auth_ldap_ssl_cert_path: /etc/ldap/server.pem
 auth_ldap_ssl_key_path: /etc/ldap/server.key
 auth_ldap_ssl_ca_path: /etc/ldap/ca.pem
+auth_ldap_ssl_ca_path_src: /etc/dirsrv/ca.pem
 
 auth_ldap_ssl_cn: "{{ ansible_fqdn }}"
 auth_ldap_ssl_desc: "PKI"
