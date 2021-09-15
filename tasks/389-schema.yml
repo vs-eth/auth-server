@@ -22,7 +22,7 @@
     become: True
     copy:
       src: "{{ item.file }}"
-      dest: "/etc/ldap/ansible/{{ item.file }}"
+      dest: "/etc/ldap/ansible/{{ item.file | basename }}"
       owner: root
       group: root
       mode: 0640
@@ -31,7 +31,7 @@
     when: check.rc == 1
     become: True
     expect:
-      command: /bin/bash -c "/usr/bin/ldapmodify -Z -x -D cn=Directory\ Manager -W < /etc/ldap/ansible/{{ item.file }}"
+      command: /bin/bash -c "/usr/bin/ldapmodify -Z -x -D cn=Directory\ Manager -W < /etc/ldap/ansible/{{ item.file | basename }}"
       responses:
         (Enter LDAP Password): "{{ auth_ldap_admin_pwd }}"
     no_log: true
