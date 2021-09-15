@@ -142,7 +142,6 @@ auth_ldap_store_pam: True
 # Whether to enable the memberOf plugin
 auth_ldap_use_memberof_plugin: False
 
-
 # For additional schemas
 # auth_ldap_additional_schema:
 #   - name: "Additional"
