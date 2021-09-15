@@ -50,4 +50,11 @@
       - ldap
       - kerberos
 
+  - name: Apply additional ldif
+    include_tasks: 389-schema.yml
+    tags:
+      - ldap
+    with_items: "{{ auth_ldap_additional_schema }}"
+    when: auth_ldap_additional_schema is defined
+
   - meta: flush_handlers
