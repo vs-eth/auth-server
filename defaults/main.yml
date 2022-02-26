@@ -124,3 +124,7 @@ auth_ldap_system_users:
 
 # Whether to actually store the pam kerberos passthrough config
 auth_ldap_store_pam: True
+
+# Gokrb5 on Debian Buster _also_ fails preauth when not setting this explicitly. On bullseye it works with the same
+# binary. To enable the workaround, change from -1 to your real preauth type (e.g. 20 for aes256-cts-hmac-sha384-192).
+auth_kerberos_fixed_preauth: -1
