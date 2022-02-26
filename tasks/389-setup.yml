@@ -128,34 +128,28 @@
     notify: restart dirsrv
 
   - name: Configure SSL
-    ldap_attr:
+    ldap_attrs:
       dn: "cn=encryption,cn=config"
       server_uri: "ldap://127.0.0.1"
       state: exact
       bind_dn: "cn=Directory Manager"
       bind_pw: "{{ auth_ldap_admin_pwd }}"
-      values: "{{ item.value }}"
-      name: "{{ item.key }}"
-    with_items:
-      - key: nsSSLClientAuth
-        value: "off"
-      - key: nsSSL3
-        value: "off"
-      - key: nsSSL2
-        value: "off"
-      - key: nsSSLSessionTimeout
-        value: "0"
+      attributes:
+        nsSSLClientAuth: "off"
+        nsSSL3: "off"
+        nsSSL2: "off"
+        nsSSLSessionTimeout: "0"
     notify: restart dirsrv
 
   - name: Enable SSL
-    ldap_attr:
+    ldap_attrs:
       dn: "cn=config"
       server_uri: "ldap://127.0.0.1"
       state: exact
       bind_dn: "cn=Directory Manager"
       bind_pw: "{{ auth_ldap_admin_pwd }}"
-      name: "nsslapd-security"
-      values: "on"
+      attributes:
+        nsslapd-security: "on"
     notify: restart dirsrv
 
   # If we changed the SSL config, this will restart the server and activate it
@@ -278,18 +272,16 @@
     notify: restart haproxy
 
   - name: Enable Retro Changelog Plugin
-    ldap_attr:
+    ldap_attrs:
       dn: "cn=Retro Changelog Plugin,cn=plugins,cn=config"
       server_uri: "{{ auth_ldap_ansible_url }}"
       bind_dn: "cn=Directory Manager"
       bind_pw: "{{ auth_ldap_admin_pwd }}"
       state: exact
-      name: "{{ item.key }}"
-      values: "{{ item.value }}"
-    with_dict:
-      nsslapd-pluginEnabled: 'on'
-      nsslapd-attribute: 'nsuniqueid:targetUniqueId'
-      nsslapd-exclude-suffix: 'cn=config'
+      attributes:
+        nsslapd-pluginEnabled: 'on'
+        nsslapd-attribute: 'nsuniqueid:targetUniqueId'
+        nsslapd-exclude-suffix: 'cn=config'
     notify: restart dirsrv
 
   # If we changed the haproxy config, this will restart the server and activate it
