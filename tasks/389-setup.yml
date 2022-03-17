@@ -5,6 +5,21 @@
       path: "/etc/dirsrv/slapd-{{ auth_ldap_shortname }}"
     register: linst
 
+  - name: Allow dirsrv-user to list /etc/dirsrv
+    become: True
+    file:
+      dest: /etc/dirsrv
+      mode: a+x
+
+  - name: "Ensure /etc/dirsrv/slapd-{{ auth_ldap_shortname }} exists"
+    become: True
+    file:
+      dest: "/etc/dirsrv/slapd-{{ auth_ldap_shortname }}"
+      state: directory
+      owner: dirsrv
+      group: dirsrv
+      mode: 0770
+
   - name: Generate setup file
     become: True
     when: not linst.stat.exists
@@ -18,7 +33,7 @@
   - name: Install directory instance
     become: True
     when: not linst.stat.exists
-    command: setup-ds --file=/etc/dirsrv/setup.inf --silent
+    command: dscreate from-file /etc/dirsrv/setup.inf
 
   - name: Check whether server cert is installed
     become: True
