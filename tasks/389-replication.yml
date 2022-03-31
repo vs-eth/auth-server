@@ -16,19 +16,19 @@
         userPassword: "{{ auth_ldap_sync_pwd }}"
         passwordExpirationTime: 20990119031407Z
 
-  - name: Enable changelog
-    ldap_entry:
-      dn: "cn=changelog5,cn=config"
-      server_uri: "{{ auth_ldap_ansible_url }}"
-      objectClass:
-        - top
-        - extensibleObject
-      bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd }}"
-      state: present
-      attributes:
-        cn: changelog5
-        nsslapd-changelogdir: "/var/lib/dirsrv/slapd-{{ auth_ldap_shortname }}/changelogdb"
+#  - name: Enable changelog
+#    ldap_entry:
+#      dn: "cn=changelog5,cn=config"
+#      server_uri: "{{ auth_ldap_ansible_url }}"
+#      objectClass:
+#        - top
+#        - extensibleObject
+#      bind_dn: "cn=Directory Manager"
+#      bind_pw: "{{ auth_ldap_admin_pwd }}"
+#      state: present
+#      attributes:
+#        cn: changelog5
+#        nsslapd-changelogdir: "/var/lib/dirsrv/slapd-{{ auth_ldap_shortname }}/changelogdb"
 
   - name: Create supplier replicas
     ldap_entry:
@@ -104,17 +104,17 @@
     tags:
       - skip_ansible_lint
 
-  - name: Configure Retro Changelog Plugin
-    ldap_attr:
-      dn: "cn=changelog5,cn=config"
-      server_uri: "{{ auth_ldap_ansible_url }}"
-      bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd }}"
-      state: exact
-      name: "{{ item.key }}"
-      values: "{{ item.value }}"
-    with_dict:
-      nsslapd-changelogmaxage: '2d'
+#  - name: Configure Retro Changelog Plugin
+#    ldap_attr:
+#      dn: "cn=changelog5,cn=config"
+#      server_uri: "{{ auth_ldap_ansible_url }}"
+#      bind_dn: "cn=Directory Manager"
+#      bind_pw: "{{ auth_ldap_admin_pwd }}"
+#      state: exact
+#      name: "{{ item.key }}"
+#      values: "{{ item.value }}"
+#    with_dict:
+#      nsslapd-changelogmaxage: '2d'
 
   - name: Enable Retro Changelog Plugin
     ldap_attr:
