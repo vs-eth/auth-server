@@ -105,41 +105,37 @@
       - skip_ansible_lint
 
 #  - name: Configure Retro Changelog Plugin
-#    ldap_attr:
+#    ldap_attrs:
 #      dn: "cn=changelog5,cn=config"
 #      server_uri: "{{ auth_ldap_ansible_url }}"
 #      bind_dn: "cn=Directory Manager"
 #      bind_pw: "{{ auth_ldap_admin_pwd }}"
 #      state: exact
-#      name: "{{ item.key }}"
-#      values: "{{ item.value }}"
-#    with_dict:
-#      nsslapd-changelogmaxage: '2d'
+#      attributes:
+#        nsslapd-changelogmaxage: '2d'
 
   - name: Enable Retro Changelog Plugin
-    ldap_attr:
+    ldap_attrs:
       dn: "cn=Content Synchronization,cn=plugins,cn=config"
       server_uri: "{{ auth_ldap_ansible_url }}"
       bind_dn: "cn=Directory Manager"
       bind_pw: "{{ auth_ldap_admin_pwd }}"
       state: exact
-      name: "{{ item.key }}"
-      values: "{{ item.value }}"
-    with_dict:
-      nsslapd-pluginEnabled: 'on'
+      attributes:
+        nsslapd-pluginEnabled: 'on'
     notify: restart dirsrv
 
 # Disable replication of the memberOf field in multi master setup
 # this should be done according to the documentation [here](https://access.redhat.com/solutions/28282)
   - name: Configure replication for memberOf plugin
-    ldap_attr:
+    ldap_attrs:
       dn: "cn={{ item[0] }}-to-{{ item[1] }},cn=replica,cn={{ auth_ldap_domain_ldap | replace(\"=\", \"\\=\") | replace(\",\", \"\\,\")}},cn=mapping tree,cn=config" 
       server_uri: "{{ auth_ldap_ansible_url }}"
       bind_dn: "cn=Directory Manager"
       bind_pw: "{{ auth_ldap_admin_pwd }}"
       state: exact
-      name: "nsds5replicatedattributelist"
-      values: (objectclass=*) $ EXCLUDE memberof
+      attributes:
+        nsds5replicatedattributelist: (objectclass=*) $ EXCLUDE memberof
     when: (item[0] != item[1]) and (item[1] == ansible_fqdn)
     with_cartesian:
       - "{{ groups[auth_ldap_group] }}"
