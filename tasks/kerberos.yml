@@ -56,13 +56,13 @@
         (database master key): "{{ auth_kerberos_database_master_key }}"
 
   - name: Configure LDAP ACLs (Kerberos)
-    ldap_attr:
+    ldap_attrs:
       dn: "{{ item.target }}"
       bind_dn: "cn=Directory Manager"
       bind_pw: '{{ auth_ldap_admin_pwd }}'
       server_uri: "{{ auth_ldap_ansible_url }}"
-      values: "{{ item.acls }}"
-      name: aci
+      attributes:
+        aci: "{{ item.acls }}"
       state: exact
     when: item.target == "cn=Kerberos,{{ auth_ldap_domain_ldap }}"
     with_items: "{{ auth_ldap_permissions }}"
@@ -175,24 +175,22 @@
         nsSaslMapFilterTemplate: (objectclass=*)
 
   - name: Add PAM passthrough auth for normal users
-    ldap_attr:
+    ldap_attrs:
       dn: "cn=PAM Pass Through Auth,cn=plugins,cn=config"
       server_uri: "{{ auth_ldap_ansible_url }}"
       bind_dn: "cn=Directory Manager"
       bind_pw: "{{ auth_ldap_admin_pwd }}"
       state: exact
-      name: "{{ item.key }}"
-      values: "{{ item.value }}"
-    with_dict:
-      nsslapd-pluginenabled: 'on'
-      pamMissingSuffix: ERROR
-      pamExcludeSuffix: cn=config
-      pamIncludeSuffix: "ou=Users,{{ auth_ldap_domain_ldap }}"
-      pamIDMapMethod: 'ENTRY'
-      pamIDAttr: uid
-      pamFallback: 'FALSE'
-      pamSecure: 'TRUE'
-      pamService: ldapkrb
+      attributes:
+        nsslapd-pluginenabled: 'on'
+        pamMissingSuffix: ERROR
+        pamExcludeSuffix: cn=config
+        pamIncludeSuffix: "ou=Users,{{ auth_ldap_domain_ldap }}"
+        pamIDMapMethod: 'ENTRY'
+        pamIDAttr: uid
+        pamFallback: 'FALSE'
+        pamSecure: 'TRUE'
+        pamService: ldapkrb
     notify: restart dirsrv
 
   - name: Configure ldapkrb pam service

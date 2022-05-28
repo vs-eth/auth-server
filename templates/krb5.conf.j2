@@ -13,6 +13,12 @@
 	default_tkt_enctypes = {{ auth_kerberos_enctypes }}
 	default_tgs_enctypes = {{ auth_kerberos_enctypes }}
 	spake_preauth_groups = {{ auth_kerberos_curves }}
+	# gokrb5 chokes without the next line
+	dns_lookup_kdc = true
+{% if auth_kerberos_fixed_preauth != -1 %}
+	# gokrb5 also chokes without the next line
+	preferred_preauth_types = {{ auth_kerberos_fixed_preauth }}
+{% endif %}
 
 [realms]
 	{{ auth_ldap_domain|upper }} = {

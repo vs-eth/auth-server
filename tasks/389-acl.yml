@@ -1,15 +1,13 @@
 ---
   - name: Restrict anonymous bind to RootDN
-    ldap_attr:
+    ldap_attrs:
       dn: "cn=config"
       server_uri: "{{ auth_ldap_ansible_url }}"
       bind_dn: "cn=Directory Manager"
       bind_pw: "{{ auth_ldap_admin_pwd }}"
       state: exact
-      name: "{{ item.key }}"
-      values: "{{ item.value }}"
-    with_dict:
-      nsslapd-allow-anonymous-access: 'rootdse'
+      attributes:
+        nsslapd-allow-anonymous-access: 'rootdse'
     notify: restart dirsrv
 
   - name: Create LDAP system users
@@ -48,23 +46,23 @@
 
   - name: Add LDAP reader group members
     run_once: true
-    ldap_attr:
+    ldap_attrs:
       dn: "cn=sys_ldap_readers,ou=Groups,{{ auth_ldap_domain_ldap }}"
       bind_dn: "cn=Directory Manager"
       bind_pw: "{{ auth_ldap_admin_pwd }}"
       server_uri: "{{ auth_ldap_ansible_url }}"
-      name: member
-      values: "{{ auth_ldap_allow_read }}"
       state: exact
+      attributes:
+        member: "{{ auth_ldap_allow_read }}"
 
   - name: Configure LDAP ACLs
-    ldap_attr:
+    ldap_attrs:
       dn: "{{ item.target }}"
       bind_dn: "cn=Directory Manager"
       bind_pw: '{{ auth_ldap_admin_pwd }}'
       server_uri: "{{ auth_ldap_ansible_url }}"
-      values: "{{ item.acls }}"
-      name: aci
+      attributes:
+        aci: "{{ item.acls }}"
       state: exact
     when: item.target != "cn=Kerberos,{{ auth_ldap_domain_ldap }}"
     with_items: "{{ auth_ldap_permissions }}"

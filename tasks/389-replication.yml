@@ -104,29 +104,25 @@
     tags:
       - skip_ansible_lint
 
-#  - name: Configure Retro Changelog Plugin
-#    ldap_attr:
-#      dn: "cn=changelog5,cn=config"
-#      server_uri: "{{ auth_ldap_ansible_url }}"
-#      bind_dn: "cn=Directory Manager"
-#      bind_pw: "{{ auth_ldap_admin_pwd }}"
-#      state: exact
-#      name: "{{ item.key }}"
-#      values: "{{ item.value }}"
-#    with_dict:
-#      nsslapd-changelogmaxage: '2d'
+#   - name: Configure Retro Changelog Plugin
+#     ldap_attrs:
+#       dn: "cn=changelog5,cn=config"
+#       server_uri: "{{ auth_ldap_ansible_url }}"
+#       bind_dn: "cn=Directory Manager"
+#       bind_pw: "{{ auth_ldap_admin_pwd }}"
+#       state: exact
+#       attributes:
+#         nsslapd-changelogmaxage: '2d'
 
   - name: Enable Retro Changelog Plugin
-    ldap_attr:
+    ldap_attrs:
       dn: "cn=Content Synchronization,cn=plugins,cn=config"
       server_uri: "{{ auth_ldap_ansible_url }}"
       bind_dn: "cn=Directory Manager"
       bind_pw: "{{ auth_ldap_admin_pwd }}"
       state: exact
-      name: "{{ item.key }}"
-      values: "{{ item.value }}"
-    with_dict:
-      nsslapd-pluginEnabled: 'on'
+      attributes:
+        nsslapd-pluginEnabled: 'on'
     notify: restart dirsrv
 
 # Disable replication of the memberOf field in multi master setup
