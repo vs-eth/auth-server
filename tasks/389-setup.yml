@@ -5,6 +5,13 @@
       path: "/etc/dirsrv/slapd-{{ auth_ldap_shortname }}"
     register: linst
 
+  - name: Ensure config directory has the right owner
+    # Turns out that if /etc/dirsrv is not owned by dirsrv as a group, slapd will simply segfault
+    become: True
+    file:
+      path: /etc/dirsrv
+      group: dirsrv
+
   - name: Generate setup file
     become: True
     when: not linst.stat.exists
@@ -14,11 +21,12 @@
       owner: root
       group: root
       mode: 0600
+    no_log: True
 
   - name: Install directory instance
     become: True
     when: not linst.stat.exists
-    command: setup-ds --file=/etc/dirsrv/setup.inf --silent
+    command: dscreate from-file /etc/dirsrv/setup.inf
 
   - name: Check whether server cert is installed
     become: True
@@ -34,17 +42,25 @@
       name: "dirsrv@{{ auth_ldap_shortname }}"
       state: stopped
 
+  - name: Load certificate store password
+    become: True
+    when: certsrvout.rc == 1
+    slurp:
+      src: "/etc/dirsrv/slapd-{{ auth_ldap_shortname }}/pwdfile.txt"
+    register: pinout
+    no_log: True
+
   - name: Concat certificates
     become: True
     when: certsrvout.rc == 1
-    command: 'openssl pkcs12 -export -out server.pfx -inkey server.key -in server.crt -certfile ca.pem -passout pass:Password'
+    command: 'openssl pkcs12 -export -out server.pfx -inkey server.key -in server.crt -certfile ca.pem -passout pass:{{ pinout.content|b64decode }}'
     args:
       chdir: /etc/dirsrv
 
   - name: Install server certificate
     become: True
     when: certsrvout.rc == 1
-    command: 'pk12util -i server.pfx -d"/etc/dirsrv/slapd-{{ auth_ldap_shortname }}" -K password -W Password -name Server-Cert -n Server-Cert'
+    command: 'pk12util -i server.pfx -d"/etc/dirsrv/slapd-{{ auth_ldap_shortname }}" -K {{ pinout.content|b64decode }} -W {{ pinout.content|b64decode }} -name Server-Cert -n Server-Cert'
     args:
       chdir: /etc/dirsrv
     notify: restart dirsrv
@@ -72,30 +88,10 @@
     shell: "certutil -L -d\"/etc/dirsrv/slapd-{{ auth_ldap_shortname }}\" | grep PKI | sed -E 's/  .*//g'"
     register: caout
 
-  - name: Store certstore password in filesystem
-    become: True
-    copy:
-      content: 'Internal (Software) Token:password'
-      dest: "/etc/dirsrv/slapd-{{ auth_ldap_shortname }}/pin.txt"
-      owner: dirsrv
-      group: root
-      mode: 0600
-    notify: restart dirsrv
-
-  - name: Store certstore password in filesystem (for certutil)
-    become: True
-    copy:
-      content: 'password'
-      dest: "/etc/dirsrv/slapd-{{ auth_ldap_shortname }}/pin-certutil.txt"
-      owner: dirsrv
-      group: root
-      mode: 0600
-    notify: restart dirsrv
-
   - name: Trust CA certificate for CA purposed
     become: True
     when: certsrvout.rc == 1
-    command: 'certutil -M -d"/etc/dirsrv/slapd-{{ auth_ldap_shortname }}" -n "{{ caout.stdout }}" -t "CT,," -f /etc/dirsrv/slapd-{{ auth_ldap_shortname }}/pin-certutil.txt'
+    command: 'certutil -M -d"/etc/dirsrv/slapd-{{ auth_ldap_shortname }}" -n "{{ caout.stdout }}" -t "CT,," -f /etc/dirsrv/slapd-{{ auth_ldap_shortname }}/pwdfile.txt'
     notify: restart dirsrv
 
   - name: Remove setup files

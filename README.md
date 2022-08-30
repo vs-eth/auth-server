@@ -2,7 +2,9 @@
 [![CircleCI status](https://img.shields.io/circleci/project/github/uubk/auth-server/master.svg?style=shield)](https://circleci.com/gh/uubk/auth-server/tree/master)
 ![License](https://img.shields.io/github/license/uubk/auth-server.svg?style=popout)
 
-Set up 389ds and MIT Kerberos to authenticate users. Tested on Debian 9.
+Set up 389ds and MIT Kerberos to authenticate users. Tested on Debian 11.
+
+Warning: This role only supports Debian 11 - for 9/10, you'll want to use the old code on the buster branch.
 
 ## Description
 This role sets up 389ds in multi-master mode.
