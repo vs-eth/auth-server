@@ -147,6 +147,11 @@ auth_ldap_use_memberof_plugin: False
 #   - name: "Additional"
 #     file: "files/ldap/additionalSchema.ldif"
 #     checkattr: "addSchema"
+
+# auth_ldap_eq_indexes:
+#  - attribute: customAttr
+#    database: userRoot
+
 # Gokrb5 on Debian Buster _also_ fails preauth when not setting this explicitly. On bullseye it works with the same
 # binary. To enable the workaround, change from -1 to your real preauth type (e.g. 20 for aes256-cts-hmac-sha384-192).
 auth_kerberos_fixed_preauth: -1

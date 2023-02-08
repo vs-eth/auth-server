@@ -1,0 +1,32 @@
+---
+- name: Create additional equality indexes
+  community.general.ldap_entry:
+    dn: "cn={{ item.attribute }},cn=index,cn={{ item.database }},cn=ldbm database,cn=plugins,cn=config"
+    server_uri: "{{ auth_ldap_ansible_url }}"
+    objectClass:
+      - top
+      - nsIndex
+    bind_dn: "cn=Directory Manager"
+    bind_pw: "{{ auth_ldap_admin_pwd }}"
+    state: present
+    attributes:
+      cn: "{{ item.attribute }}"
+      nsSystemIndex: false
+      nsIndex: eq
+  register: index
+
+- name: Add reindexing task
+  when: index.changed
+  community.general.ldap_entry:
+    dn: "cn={{ item.attribute }},cn=index,cn=tasks,cn=config"
+    server_uri: "{{ auth_ldap_ansible_url }}"
+    objectClass:
+      - top
+      - extensibleObject
+    bind_dn: "cn=Directory Manager"
+    bind_pw: "{{ auth_ldap_admin_pwd }}"
+    state: present
+    attributes:
+      cn: "{{ item.attribute }}"
+      nsInstance: "{{ item.database }}"
+      nsIndexAttribute: "{{ item.attribute }}:eq"

@@ -1,61 +1,68 @@
 ---
-  - name: Install software
-    become: True
-    apt:
-      state: present
-      update_cache: yes
-      cache_valid_time: 1800
-      name:
-        - python3-ldap
-        - krb5-kdc-ldap
-        - krb5-kdc
-        - krb5-admin-server
-        - krb5-pkinit
-        - python3-pexpect
-        - sasl2-bin
-        - libsasl2-modules-gssapi-mit
-        - 389-ds-base
-        - libnss3-tools
-        - libldap-common
-        - libpam-krb5
-        - python3-pexpect
-    tags:
-      - ldap
-      - kerberos
+- name: Install software
+  become: True
+  apt:
+    state: present
+    update_cache: yes
+    cache_valid_time: 1800
+    name:
+      - python3-ldap
+      - krb5-kdc-ldap
+      - krb5-kdc
+      - krb5-admin-server
+      - krb5-pkinit
+      - python3-pexpect
+      - sasl2-bin
+      - libsasl2-modules-gssapi-mit
+      - 389-ds-base
+      - libnss3-tools
+      - libldap-common
+      - libpam-krb5
+      - python3-pexpect
+  tags:
+    - ldap
+    - kerberos
 
-  - import_tasks: variable-initialisation.yml
-    tags:
-      - ldap
+- import_tasks: variable-initialisation.yml
+  tags:
+    - ldap
 
-  - import_tasks: 389-setup.yml
-    tags:
-      - ldap
+- import_tasks: 389-setup.yml
+  tags:
+    - ldap
 
-  - import_tasks: 389-replication.yml
-    tags:
-      - ldap
+- import_tasks: 389-replication.yml
+  tags:
+    - ldap
 
-  - import_tasks: 389-acl.yml
-    tags:
-      - ldap
+- import_tasks: 389-acl.yml
+  tags:
+    - ldap
 
-  - include_tasks: kerberos.yml
-    tags:
-      - kerberos
+- include_tasks: kerberos.yml
+  tags:
+    - kerberos
 
-  - name: Configure LDAP users
-    include_tasks: content.yml
-    with_items:
-      - "{{ auth_ldap_users }}"
-    tags:
-      - ldap
-      - kerberos
+- name: Configure LDAP users
+  include_tasks: content.yml
+  with_items:
+    - "{{ auth_ldap_users }}"
+  tags:
+    - ldap
+    - kerberos
 
-  - name: Apply additional ldif
-    include_tasks: 389-schema.yml
-    tags:
-      - ldap
-    with_items: "{{ auth_ldap_additional_schema }}"
-    when: auth_ldap_additional_schema is defined
+- name: Apply additional ldif
+  include_tasks: 389-schema.yml
+  tags:
+    - ldap
+  with_items: "{{ auth_ldap_additional_schema }}"
+  when: auth_ldap_additional_schema is defined
 
-  - meta: flush_handlers
+- name: Apply additional indexes
+  include_tasks: 389-index.yml
+  tags:
+    - ldap
+  with_items: "{{ auth_ldap_eq_indexes }}"
+  when: auth_ldap_eq_indexes is defined
+
+- meta: flush_handlers
