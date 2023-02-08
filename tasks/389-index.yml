@@ -12,7 +12,7 @@
     attributes:
       cn: "{{ item.attribute }}"
       nsSystemIndex: false
-      nsIndex: eq
+      nsIndexType: eq
   register: index
 
 - name: Add reindexing task
