@@ -9,7 +9,7 @@
         ldap_kadmind_dn = "cn=krbbind,ou=TechnicalUsers,{{ auth_ldap_domain_ldap }}"
         ldap_service_password_file = /etc/krb5kdc/ldap.cred
         ldap_kerberos_container_dn = "cn=Kerberos,{{ auth_ldap_domain_ldap }}"
-        ldap_servers ={% for item in groups[auth_ldap_group] %} ldaps://{{ hostvars[item]['ansible_default_ipv4']['address'] }}{% endfor %}
+        ldap_servers = ldap://127.0.0.1:389{% for item in groups[auth_ldap_group] %}{% if hostvars[item]['ansible_fqdn'] != ansible_fqdn %} ldap://{{ 60389 + hostvars[item]['auth_ldap_server_id'] }}{% endif %}{% endfor %}
 
         ldap_conns_per_server = 5
         unlockiter = true
