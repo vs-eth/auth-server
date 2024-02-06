@@ -85,7 +85,7 @@
   - name: Get CA certificate nickname
     become: True
     when: certsrvout.rc == 1
-    shell: "certutil -L -d\"/etc/dirsrv/slapd-{{ auth_ldap_shortname }}\" | grep -m 1 '{{ auth_ldap_ssl_desc }}' | sed -e 's/ \\S*,\\S*,\\S*\\s*$//' -e 's/\\s*$//'"
+    shell: "certutil -L -d\"/etc/dirsrv/slapd-{{ auth_ldap_shortname }}\" | grep {{ auth_ldap_ssl_desc }} | sed -E 's/  .*//g'"
     register: caout
 
   - name: Trust CA certificate for CA purposed
