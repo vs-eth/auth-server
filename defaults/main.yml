@@ -20,16 +20,7 @@ auth_ldap_sync_pwd: None
 # other servers on iniy
 auth_ldap_init_source: False
 
-# Kerberos admin credentials (you need to change these)
-auth_kerberos_ldap_password: False
-auth_kerberos_database_master_key: False
-# Principals to be granted admin rights
-auth_kerberos_admin_privs: []
-# - principal: foo@EXAMPLE.ORG
-#   privileges: '*'
-#   target: '*'
-
-# Group that all LDAP/kerberos servers are in (you probably need to change this)
+# Group that all LDAP servers are in (you probably need to change this)
 auth_ldap_group: core
 
 # TLS for openLDAP
@@ -41,12 +32,6 @@ auth_ldap_ssl_ca_path_src: /etc/dirsrv/ca.pem
 
 auth_ldap_ssl_cn: "{{ ansible_fqdn }}"
 auth_ldap_ssl_desc: "PKI"
-
-# Enctypes for recent kerberos
-auth_kerberos_enctypes: "aes256-cts-hmac-sha384-192 aes128-cts-hmac-sha256-128 aes256-cts-hmac-sha1-96 aes128-cts-hmac-sha1-96"
-
-# Elliptic curves for SPAKE
-auth_kerberos_curves: "edwards25519"
 
 # Users to create
 auth_ldap_users: []
@@ -136,9 +121,6 @@ auth_ldap_user_objectclasses:
   - top
   - inetOrgPerson
 
-# Whether to actually store the pam kerberos passthrough config
-auth_ldap_store_pam: True
-
 # Whether to enable the memberOf plugin
 auth_ldap_use_memberof_plugin: False
 
@@ -151,7 +133,3 @@ auth_ldap_use_memberof_plugin: False
 # auth_ldap_eq_indexes:
 #  - attribute: customAttr
 #    database: userRoot
-
-# Gokrb5 on Debian Buster _also_ fails preauth when not setting this explicitly. On bullseye it works with the same
-# binary. To enable the workaround, change from -1 to your real preauth type (e.g. 20 for aes256-cts-hmac-sha384-192).
-auth_kerberos_fixed_preauth: -1

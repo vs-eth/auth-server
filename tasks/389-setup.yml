@@ -227,6 +227,13 @@
         file: mail.ldif
         checkattr: postfixConfiguration
 
+  - name: Apply additional ldif
+    include_tasks: 389-schema.yml
+    tags:
+      - ldap
+    with_items: "{{ auth_ldap_additional_schema }}"
+    when: auth_ldap_additional_schema is defined
+
   - name: Configure LDAP service containers
     ldap_entry:
       dn: "ou={{ item }},ou=TechnicalUsers,{{ auth_ldap_domain_ldap }}"

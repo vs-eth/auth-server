@@ -7,20 +7,14 @@
       cache_valid_time: 1800
       name:
         - python3-ldap
-        - krb5-kdc-ldap
-        - krb5-kdc
-        - krb5-admin-server
-        - krb5-pkinit
         - sasl2-bin
         - libsasl2-modules-gssapi-mit
         - 389-ds-base
         - libnss3-tools
         - libldap-common
-        - libpam-krb5
         - python3-pexpect
     tags:
       - ldap
-      - kerberos
 
   - import_tasks: variable-initialisation.yml
     tags:
@@ -38,24 +32,12 @@
     tags:
       - ldap
 
-  - include_tasks: kerberos.yml
-    tags:
-      - kerberos
-
   - name: Configure LDAP users
     include_tasks: content.yml
     with_items:
       - "{{ auth_ldap_users }}"
     tags:
       - ldap
-      - kerberos
-
-  - name: Apply additional ldif
-    include_tasks: 389-schema.yml
-    tags:
-      - ldap
-    with_items: "{{ auth_ldap_additional_schema }}"
-    when: auth_ldap_additional_schema is defined
 
   - name: Apply additional indexes
     include_tasks: 389-index.yml
