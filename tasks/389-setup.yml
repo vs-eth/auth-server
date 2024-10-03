@@ -63,7 +63,7 @@
   ansible.builtin.command: 'pk12util -i server.pfx -d"/etc/dirsrv/slapd-{{ auth_ldap_shortname }}" -K {{ pinout.content | b64decode }} -W {{ pinout.content | b64decode }} -name Server-Cert -n Server-Cert'
   args:
     chdir: /etc/dirsrv
-  notify: restart dirsrv
+  notify: Restart dirsrv
 
   # Depending on, I  don't know, the state of the moon or something, pk12util
   # will sometimes ignore the -n argument and name the cert after the CN.
@@ -79,7 +79,7 @@
   ansible.builtin.command: 'certutil --rename -d/etc/dirsrv/slapd-{{ auth_ldap_shortname }} -n "{{ auth_ldap_ssl_cn }}" --new-n Server-Cert'
   args:
     chdir: /etc/dirsrv
-  notify: restart dirsrv
+  notify: Restart dirsrv
   failed_when: false
 
 - name: Get CA certificate nickname
@@ -92,7 +92,7 @@
   become: true
   when: certsrvout.rc == 1
   ansible.builtin.command: 'certutil -M -d"/etc/dirsrv/slapd-{{ auth_ldap_shortname }}" -n "{{ caout.stdout }}" -t "CT,," -f /etc/dirsrv/slapd-{{ auth_ldap_shortname }}/pwdfile.txt'
-  notify: restart dirsrv
+  notify: Restart dirsrv
 
 - name: Remove setup files
   become: true
@@ -122,7 +122,7 @@
       nsSSLActivation: "on"
       nsSSLToken: "internal (software)"
       cn: RSA
-  notify: restart dirsrv
+  notify: Restart dirsrv
 
 - name: Configure SSL
   community.general.ldap_attrs:
@@ -136,7 +136,7 @@
       nsSSL3: "off"
       nsSSL2: "off"
       nsSSLSessionTimeout: "0"
-  notify: restart dirsrv
+  notify: Restart dirsrv
 
 - name: Enable SSL
   community.general.ldap_attrs:
@@ -147,7 +147,7 @@
     bind_pw: "{{ auth_ldap_admin_pwd }}"
     attributes:
       nsslapd-security: "on"
-  notify: restart dirsrv
+  notify: Restart dirsrv
 
 # If we changed the SSL config, this will restart the server and activate it
 - name: Flush handlers
@@ -275,7 +275,7 @@
     owner: root
     group: root
     mode: "0644"
-  notify: restart haproxy
+  notify: Restart haproxy
 
 - name: Enable Retro Changelog Plugin
   community.general.ldap_attrs:
@@ -288,7 +288,7 @@
       nsslapd-pluginEnabled: 'on'
       nsslapd-attribute: 'nsuniqueid:targetUniqueId'
       nsslapd-exclude-suffix: 'cn=config'
-  notify: restart dirsrv
+  notify: Restart dirsrv
 
 - name: Enable or disable Memberof Plugin
   community.general.ldap_attrs:
@@ -299,7 +299,7 @@
     state: exact
     attributes:
       nsslapd-pluginEnabled: "{% if auth_ldap_use_memberof_plugin %}on{% else %}off{% endif %}"
-  notify: restart dirsrv
+  notify: Restart dirsrv
 
 # If we changed the haproxy config, this will restart the server and activate it
 - name: Flush handlers

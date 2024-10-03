@@ -8,7 +8,7 @@
     state: exact
     attributes:
       nsslapd-allow-anonymous-access: 'rootdse'
-  notify: restart dirsrv
+  notify: Restart dirsrv
 
 - name: Create LDAP system users
   run_once: true
