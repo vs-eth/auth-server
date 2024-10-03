@@ -1,5 +1,5 @@
 ---
 
-  - name: Add inetUser to system users
-    set_fact:
-      auth_ldap_user_objectclasses: "{{ auth_ldap_user_objectclasses + ['inetUser'] }}"
+- name: Add inetUser to system users
+  ansible.builtin.set_fact:
+    auth_ldap_user_objectclasses: "{{ auth_ldap_user_objectclasses + ['inetUser'] }}"

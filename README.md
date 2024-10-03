@@ -2,9 +2,7 @@
 [![CircleCI status](https://img.shields.io/circleci/project/github/uubk/auth-server/master.svg?style=shield)](https://circleci.com/gh/uubk/auth-server/tree/master)
 ![License](https://img.shields.io/github/license/uubk/auth-server.svg?style=popout)
 
-Set up 389ds and MIT Kerberos to authenticate users. Tested on Debian 11.
-
-Warning: This role only supports Debian 11 - for 9/10, you'll want to use the old code on the buster branch.
+Set up 389ds to authenticate users.
 
 ## Description
 This role sets up 389ds in multi-master mode.
@@ -19,9 +17,6 @@ This role sets up 389ds in multi-master mode.
 | `auth_ldap_sync_pwd` | `False` | The LDAP syncrepl user password |
 | `auth_ldap_group` | `core` | The group of hosts this role is applied to |
 | `auth_ldap_init_source` | `False` | The name of the host that should be used as a LDAP data source when adding new hosts. |
-| `auth_kerberos_ldap_password` | `False` | The kerberos LDAP service account password |
-| `auth_kerberos_database_master_key` | `False` | The initial kerberos database master key |
-| `auth_kerberos_enctypes` | `aes256-cts-hmac-sha384-192 aes128-cts-hmac-sha256-128` | Which encryption modes to enable? The default is for recent versions of Kerberos and no Windows clients only. |
 | `auth_ldap_have_tls` | `True` | Whether to enable SSL/TLS support in openLDAP |
 | `auth_ldap_ssl_cert_path` | `/etc/ldap/server.pem` | Path to openLDAP's certificate |
 | `auth_ldap_ssl_key_path` | `/etc/ldap/server.key` | Path to openLDAP's certificate's key|
@@ -32,9 +27,6 @@ This role sets up 389ds in multi-master mode.
 | `auth_ldap_service_bases` | (see defaults/main.yml) | LDAP containers to create for services |
 | `auth_ldap_service_accounts` | (see defaults/main.yml) | Kerberos services to generate. This will also write out a keytab for each service. |
 | `auth_ldap_permissions` | (see defaults/main.yml) | ACIs to set on the directory |
-| `auth_kerberos_admin_privs` | `[]` | Kerberos principals to grant administrative permissions to (see defaults/main.yml for format) |
-| `auth_ldap_store_pam` | `True` | Whether to actually store the generated 389ds PAM config. Useful if you want to customize it using another role |
-|`auth_kerberos_curves` | `edwards25519` | Curves to use for kerberos SPAKE |
 | `auth_ldap_use_memberof_plugin` | `False` | Whether to enable the `memberOf` LDAP plugin. |
 
 Users can be created by putting them into `auth_ldap_users` as a dict with the following format:

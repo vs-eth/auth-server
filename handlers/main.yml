@@ -1,29 +1,14 @@
 ---
-  - name: restart kdc
-    become: True
-    service:
-      name: krb5-kdc
-      state: restarted
-      enabled: yes
-    notify: restart kadmind
+- name: Restart dirsrv
+  become: true
+  service:
+    name: "dirsrv@{{ auth_ldap_shortname }}"
+    state: restarted
+    enabled: true
 
-  - name: restart kadmind
-    become: True
-    service:
-      name: krb5-admin-server
-      state: restarted
-      enabled: yes
-
-  - name: restart dirsrv
-    become: True
-    service:
-      name: "dirsrv@{{ auth_ldap_shortname }}"
-      state: restarted
-      enabled: yes
-
-  - name: restart haproxy
-    become: True
-    service:
-      name: haproxy
-      state: restarted
-      enabled: yes
+- name: Restart haproxy
+  become: true
+  service:
+    name: haproxy
+    state: restarted
+    enabled: true
