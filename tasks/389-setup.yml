@@ -1,302 +1,306 @@
 ---
-  - name: Check whether directory instance has already been created
-    become: True
-    stat:
-      path: "/etc/dirsrv/slapd-{{ auth_ldap_shortname }}"
-    register: linst
+- name: Check whether directory instance has already been created
+  become: true
+  ansible.builtin.stat:
+    path: "/etc/dirsrv/slapd-{{ auth_ldap_shortname }}"
+  register: linst
 
-  - name: Ensure config directory has the right owner
-    # Turns out that if /etc/dirsrv is not owned by dirsrv as a group, slapd will simply segfault
-    become: True
-    file:
-      path: /etc/dirsrv
-      group: dirsrv
+- name: Ensure config directory has the right owner
+  # Turns out that if /etc/dirsrv is not owned by dirsrv as a group, slapd will simply segfault
+  become: true
+  ansible.builtin.file:
+    path: /etc/dirsrv
+    group: dirsrv
 
-  - name: Generate setup file
-    become: True
-    when: not linst.stat.exists
-    template:
-      src: setup.inf.j2
-      dest: /etc/dirsrv/setup.inf
-      owner: root
-      group: root
-      mode: 0600
-    no_log: True
+- name: Generate setup file
+  become: true
+  when: not linst.stat.exists
+  ansible.builtin.template:
+    src: setup.inf.j2
+    dest: /etc/dirsrv/setup.inf
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
 
-  - name: Install directory instance
-    become: True
-    when: not linst.stat.exists
-    command: dscreate from-file /etc/dirsrv/setup.inf
+- name: Install directory instance
+  become: true
+  when: not linst.stat.exists
+  ansible.builtin.command: dscreate from-file /etc/dirsrv/setup.inf
 
-  - name: Check whether server cert is installed
-    become: True
-    shell: certutil -d "/etc/dirsrv/slapd-{{ auth_ldap_shortname }}" -L | grep -E '{{ ansible_fqdn }}|Server-Cert'
-    register: certsrvout
-    failed_when: False
-    changed_when: False
+- name: Check whether server cert is installed
+  become: true
+  ansible.builtin.shell: set -o pipefail && certutil -d "/etc/dirsrv/slapd-{{ auth_ldap_shortname }}" -L | grep -E '{{ ansible_fqdn }}|Server-Cert'
+  register: certsrvout
+  failed_when: false
+  changed_when: false
 
-  - name: stop dirsrv
-    become: True
-    when: certsrvout.rc == 1
-    service:
-      name: "dirsrv@{{ auth_ldap_shortname }}"
-      state: stopped
+- name: Stop dirsrv
+  become: true
+  when: certsrvout.rc == 1
+  ansible.builtin.service:
+    name: "dirsrv@{{ auth_ldap_shortname }}"
+    state: stopped
 
-  - name: Load certificate store password
-    become: True
-    when: certsrvout.rc == 1
-    slurp:
-      src: "/etc/dirsrv/slapd-{{ auth_ldap_shortname }}/pwdfile.txt"
-    register: pinout
-    no_log: True
+- name: Load certificate store password
+  become: true
+  when: certsrvout.rc == 1
+  slurp:
+    src: "/etc/dirsrv/slapd-{{ auth_ldap_shortname }}/pwdfile.txt"
+  register: pinout
+  no_log: true
 
-  - name: Concat certificates
-    become: True
-    when: certsrvout.rc == 1
-    command: 'openssl pkcs12 -export -out server.pfx -inkey {{ auth_ldap_ssl_key_path }} -in {{ auth_ldap_ssl_cert_path }} -certfile {{ auth_ldap_ssl_ca_path }} -passout pass:{{ pinout.content|b64decode }}'
-    args:
-      chdir: /etc/dirsrv
+- name: Concat certificates
+  become: true
+  when: certsrvout.rc == 1
+  ansible.builtin.command: 'openssl pkcs12 -export -out server.pfx -inkey {{ auth_ldap_ssl_key_path }} -in {{ auth_ldap_ssl_cert_path }} -certfile {{ auth_ldap_ssl_ca_path }} -passout pass:{{ pinout.content | b64decode }}'
+  args:
+    chdir: /etc/dirsrv
 
-  - name: Install server certificate
-    become: True
-    when: certsrvout.rc == 1
-    command: 'pk12util -i server.pfx -d"/etc/dirsrv/slapd-{{ auth_ldap_shortname }}" -K {{ pinout.content|b64decode }} -W {{ pinout.content|b64decode }} -name Server-Cert -n Server-Cert'
-    args:
-      chdir: /etc/dirsrv
-    notify: restart dirsrv
+- name: Install server certificate
+  become: true
+  when: certsrvout.rc == 1
+  ansible.builtin.command: 'pk12util -i server.pfx -d"/etc/dirsrv/slapd-{{ auth_ldap_shortname }}" -K {{ pinout.content | b64decode }} -W {{ pinout.content | b64decode }} -name Server-Cert -n Server-Cert'
+  args:
+    chdir: /etc/dirsrv
+  notify: restart dirsrv
 
-    # Depending on, I  don't know, the state of the moon or something, pk12util
-    # will sometimes ignore the -n argument and name the cert after the CN.
-    # Depending on the state of the sun or something, 389-ds will deem to
-    # consider this being a valid certificate or not (the docs say that it only
-    # consideres certificates named after nsSSLPersonalitySSL, which would have
-    # been the CN when I wrote this, but the docs are definitely wrong). Fix
-    # this by always renaming the certificate to 'Server-Cert', forcing
-    # nsSSLPersonalitySSL to the same value and ignoring errors...
-  - name: Rename the server certificate in case pk12util decided to ignore it's arguments again
-    become: True
-    when: certsrvout.rc == 1
-    command: 'certutil --rename -d/etc/dirsrv/slapd-{{ auth_ldap_shortname }} -n "{{ auth_ldap_ssl_cn }}" --new-n Server-Cert'
-    args:
-      chdir: /etc/dirsrv
-    notify: restart dirsrv
-    failed_when: False
+  # Depending on, I  don't know, the state of the moon or something, pk12util
+  # will sometimes ignore the -n argument and name the cert after the CN.
+  # Depending on the state of the sun or something, 389-ds will deem to
+  # consider this being a valid certificate or not (the docs say that it only
+  # consideres certificates named after nsSSLPersonalitySSL, which would have
+  # been the CN when I wrote this, but the docs are definitely wrong). Fix
+  # this by always renaming the certificate to 'Server-Cert', forcing
+  # nsSSLPersonalitySSL to the same value and ignoring errors...
+- name: Rename the server certificate in case pk12util decided to ignore it's arguments again
+  become: true
+  when: certsrvout.rc == 1
+  ansible.builtin.command: 'certutil --rename -d/etc/dirsrv/slapd-{{ auth_ldap_shortname }} -n "{{ auth_ldap_ssl_cn }}" --new-n Server-Cert'
+  args:
+    chdir: /etc/dirsrv
+  notify: restart dirsrv
+  failed_when: false
 
-  - name: Get CA certificate nickname
-    become: True
-    when: certsrvout.rc == 1
-    shell: "certutil -L -d\"/etc/dirsrv/slapd-{{ auth_ldap_shortname }}\" | grep \"{{ auth_ldap_ssl_desc }}\" | sed -E 's/  .*//g'"
-    register: caout
+- name: Get CA certificate nickname
+  become: true
+  when: certsrvout.rc == 1
+  ansible.builtin.shell: "set -o pipefail && certutil -L -d\"/etc/dirsrv/slapd-{{ auth_ldap_shortname }}\" | grep \"{{ auth_ldap_ssl_desc }}\" | sed -E 's/  .*//g'"
+  register: caout
 
-  - name: Trust CA certificate for CA purposed
-    become: True
-    when: certsrvout.rc == 1
-    command: 'certutil -M -d"/etc/dirsrv/slapd-{{ auth_ldap_shortname }}" -n "{{ caout.stdout }}" -t "CT,," -f /etc/dirsrv/slapd-{{ auth_ldap_shortname }}/pwdfile.txt'
-    notify: restart dirsrv
+- name: Trust CA certificate for CA purposed
+  become: true
+  when: certsrvout.rc == 1
+  ansible.builtin.command: 'certutil -M -d"/etc/dirsrv/slapd-{{ auth_ldap_shortname }}" -n "{{ caout.stdout }}" -t "CT,," -f /etc/dirsrv/slapd-{{ auth_ldap_shortname }}/pwdfile.txt'
+  notify: restart dirsrv
 
-  - name: Remove setup files
-    become: True
-    file:
-      path: "/etc/dirsrv/{{ item }}"
-      state: absent
-    with_items:
-      - server.pfx
-      - setup.inf
+- name: Remove setup files
+  become: true
+  ansible.builtin.file:
+    path: "/etc/dirsrv/{{ item }}"
+    state: absent
+  with_items:
+    - server.pfx
+    - setup.inf
 
-  # If we installed a certificate, this will restart the server
-  - meta: flush_handlers
+# If we installed a certificate, this will restart the server
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
 
-  - name: Configure certificate location
-    ldap_entry:
-      dn: "cn=RSA,cn=encryption,cn=config"
-      server_uri: "ldap://127.0.0.1"
-      objectClass:
-        - 'nsEncryptionModule'
-        - 'top'
-      bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd }}"
-      state: present
-      attributes:
-        nsSSLPersonalitySSL: "Server-Cert" # Used to be the fqdn but got ignored sometimes...
-        nsSSLActivation: on
-        nsSSLToken: "internal (software)"
-        cn: RSA
-    notify: restart dirsrv
+- name: Configure certificate location
+  community.general.ldap_entry:
+    dn: "cn=RSA,cn=encryption,cn=config"
+    server_uri: "ldap://127.0.0.1"
+    objectClass:
+      - 'nsEncryptionModule'
+      - 'top'
+    bind_dn: "cn=Directory Manager"
+    bind_pw: "{{ auth_ldap_admin_pwd }}"
+    state: present
+    attributes:
+      nsSSLPersonalitySSL: "Server-Cert" # Used to be the fqdn but got ignored sometimes...
+      nsSSLActivation: "on"
+      nsSSLToken: "internal (software)"
+      cn: RSA
+  notify: restart dirsrv
 
-  - name: Configure SSL
-    ldap_attrs:
-      dn: "cn=encryption,cn=config"
-      server_uri: "ldap://127.0.0.1"
-      state: exact
-      bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd }}"
-      attributes:
-        nsSSLClientAuth: "off"
-        nsSSL3: "off"
-        nsSSL2: "off"
-        nsSSLSessionTimeout: "0"
-    notify: restart dirsrv
+- name: Configure SSL
+  community.general.ldap_attrs:
+    dn: "cn=encryption,cn=config"
+    server_uri: "ldap://127.0.0.1"
+    state: exact
+    bind_dn: "cn=Directory Manager"
+    bind_pw: "{{ auth_ldap_admin_pwd }}"
+    attributes:
+      nsSSLClientAuth: "off"
+      nsSSL3: "off"
+      nsSSL2: "off"
+      nsSSLSessionTimeout: "0"
+  notify: restart dirsrv
 
-  - name: Enable SSL
-    ldap_attrs:
-      dn: "cn=config"
-      server_uri: "ldap://127.0.0.1"
-      state: exact
-      bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd }}"
-      attributes:
-        nsslapd-security: "on"
-    notify: restart dirsrv
+- name: Enable SSL
+  community.general.ldap_attrs:
+    dn: "cn=config"
+    server_uri: "ldap://127.0.0.1"
+    state: exact
+    bind_dn: "cn=Directory Manager"
+    bind_pw: "{{ auth_ldap_admin_pwd }}"
+    attributes:
+      nsslapd-security: "on"
+  notify: restart dirsrv
 
-  # If we changed the SSL config, this will restart the server and activate it
-  - meta: flush_handlers
+# If we changed the SSL config, this will restart the server and activate it
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
 
-  - name: Ensure that ldap config directory exists
-    become: True
-    when: auth_ldap_have_tls | bool
-    file:
-      path: /etc/ldap
-      state: directory
-      owner: root
-      group: root
-      mode: 0755
+- name: Ensure that ldap config directory exists
+  become: true
+  when: auth_ldap_have_tls | bool
+  ansible.builtin.file:
+    path: /etc/ldap
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
 
-  - name: Copy TLS CA to ldap config directory
-    become: True
-    when: auth_ldap_have_tls | bool
-    copy:
-      src: "{{ auth_ldap_ssl_ca_path_src }}"
-      dest: /etc/ldap/ca.pem
-      owner: root
-      group: root
-      mode: 0644
-      remote_src: True
+- name: Copy TLS CA to ldap config directory
+  become: true
+  when: auth_ldap_have_tls | bool
+  ansible.builtin.copy:
+    src: "{{ auth_ldap_ssl_ca_path_src }}"
+    dest: /etc/ldap/ca.pem
+    owner: root
+    group: root
+    mode: "0644"
+    remote_src: true
 
-  - name: Configure TLS CA in ldap.conf
-    become: True
-    when: auth_ldap_have_tls | bool
-    template:
-      src: ldap.conf.j2
-      dest: /etc/ldap/ldap.conf
-      owner: root
-      group: root
-      mode: 0644
+- name: Configure TLS CA in ldap.conf
+  become: true
+  when: auth_ldap_have_tls | bool
+  ansible.builtin.template:
+    src: ldap.conf.j2
+    dest: /etc/ldap/ldap.conf
+    owner: root
+    group: root
+    mode: "0644"
 
-  - name: Set URL to SSL
-    when: auth_ldap_have_tls | bool
-    set_fact:
-      auth_ldap_ansible_url: "ldaps://{{ ansible_fqdn }}"
+- name: Set URL to SSL
+  when: auth_ldap_have_tls | bool
+  ansible.builtin.set_fact:
+    auth_ldap_ansible_url: "ldaps://{{ ansible_fqdn }}"
 
-  - name: Actually create the BaseDN
-    ldap_entry:
-      dn: "{{ auth_ldap_domain_ldap }}"
-      objectClass:
-        - organization
-        - dcObject
-        - top
-      bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd }}"
-      server_uri: "{{ auth_ldap_ansible_url }}"
-      attributes:
-        dc: "{{ auth_ldap_domain_suffix }}"
-        o: "{{ auth_ldap_domain_suffix|upper }}"
+- name: Actually create the BaseDN
+  community.general.ldap_entry:
+    dn: "{{ auth_ldap_domain_ldap }}"
+    objectClass:
+      - organization
+      - dcObject
+      - top
+    bind_dn: "cn=Directory Manager"
+    bind_pw: "{{ auth_ldap_admin_pwd }}"
+    server_uri: "{{ auth_ldap_ansible_url }}"
+    attributes:
+      dc: "{{ auth_ldap_domain_suffix }}"
+      o: "{{ auth_ldap_domain_suffix | upper }}"
 
-  - name: Configure LDAP containers
-    ldap_entry:
-      dn: "ou={{ item }},{{ auth_ldap_domain_ldap }}"
-      objectClass: organizationalUnit
-      bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd }}"
-      server_uri: "{{ auth_ldap_ansible_url }}"
-    with_items:
-      - Users
-      - Groups
-      - TechnicalUsers
+- name: Configure LDAP containers
+  community.general.ldap_entry:
+    dn: "ou={{ item }},{{ auth_ldap_domain_ldap }}"
+    objectClass: organizationalUnit
+    bind_dn: "cn=Directory Manager"
+    bind_pw: "{{ auth_ldap_admin_pwd }}"
+    server_uri: "{{ auth_ldap_ansible_url }}"
+  with_items:
+    - Users
+    - Groups
+    - TechnicalUsers
 
-  - include_tasks: 389-schema.yml
-    tags:
-      - ldap
-    with_items:
-      - name: Kerberos
-        file: kerberos.ldif
-        checkattr: krbPrincipalName
-      - name: DNS
-        file: dns.ldif
-        checkattr: idnsTemplateObject
-      - name: Mail
-        file: mail.ldif
-        checkattr: postfixConfiguration
+- name: Create LDAP schemata
+  ansible.builtin.include_tasks: 389-schema.yml
+  tags:
+    - ldap
+  with_items:
+    - name: Kerberos
+      file: kerberos.ldif
+      checkattr: krbPrincipalName
+    - name: DNS
+      file: dns.ldif
+      checkattr: idnsTemplateObject
+    - name: Mail
+      file: mail.ldif
+      checkattr: postfixConfiguration
 
-  - name: Apply additional ldif
-    include_tasks: 389-schema.yml
-    tags:
-      - ldap
-    with_items: "{{ auth_ldap_additional_schema }}"
-    when: auth_ldap_additional_schema is defined
+- name: Apply additional ldif
+  ansible.builtin.include_tasks: 389-schema.yml
+  tags:
+    - ldap
+  with_items: "{{ auth_ldap_additional_schema }}"
+  when: auth_ldap_additional_schema is defined
 
-  - name: Configure LDAP service containers
-    ldap_entry:
-      dn: "ou={{ item }},ou=TechnicalUsers,{{ auth_ldap_domain_ldap }}"
-      objectClass: organizationalUnit
-      bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd }}"
-      server_uri: "{{ auth_ldap_ansible_url }}"
-    with_items: "{{ auth_ldap_services }}"
+- name: Configure LDAP service containers
+  community.general.ldap_entry:
+    dn: "ou={{ item }},ou=TechnicalUsers,{{ auth_ldap_domain_ldap }}"
+    objectClass: organizationalUnit
+    bind_dn: "cn=Directory Manager"
+    bind_pw: "{{ auth_ldap_admin_pwd }}"
+    server_uri: "{{ auth_ldap_ansible_url }}"
+  with_items: "{{ auth_ldap_services }}"
 
-  - name: Configure LDAP service bases
-    ldap_entry:
-      dn: "cn={{ item.name }},{{ auth_ldap_domain_ldap }}"
-      server_uri: "{{ auth_ldap_ansible_url }}"
-      bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd }}"
-      objectClass: "{{ item.objectClass }}"
-      attributes:
-        cn: "{{ item.name }}"
-    with_items: "{{ auth_ldap_service_bases }}"
+- name: Configure LDAP service bases
+  community.general.ldap_entry:
+    dn: "cn={{ item.name }},{{ auth_ldap_domain_ldap }}"
+    server_uri: "{{ auth_ldap_ansible_url }}"
+    bind_dn: "cn=Directory Manager"
+    bind_pw: "{{ auth_ldap_admin_pwd }}"
+    objectClass: "{{ item.objectClass }}"
+    attributes:
+      cn: "{{ item.name }}"
+  with_items: "{{ auth_ldap_service_bases }}"
 
-  - name: Assemble HAProxy certificates
-    when: auth_ldap_have_tls | bool
-    become: True
-    shell: cat /etc/dirsrv/{{ item }}.crt /etc/dirsrv/{{ item }}.key > /etc/dirsrv/{{ item }}.pem && chown root:root /etc/dirsrv/{{ item }}.pem && chmod 600 /etc/dirsrv/{{ item }}.pem
-    changed_when: False
-    with_items:
-      - server
-      - client
+- name: Assemble HAProxy certificates
+  when: auth_ldap_have_tls | bool
+  become: true
+  ansible.builtin.shell: cat /etc/dirsrv/{{ item }}.crt /etc/dirsrv/{{ item }}.key > /etc/dirsrv/{{ item }}.pem && chown root:root /etc/dirsrv/{{ item }}.pem && chmod 600 /etc/dirsrv/{{ item }}.pem
+  changed_when: false
+  with_items:
+    - server
+    - client
 
-  - name: Add HAproxy dropin
-    when: auth_ldap_have_tls | bool
-    become: True
-    template:
-      src: haproxy-dropin.conf.j2
-      dest: /etc/haproxy/conf.d/30-ldap.conf
-      owner: root
-      group: root
-      mode: 0644
-    notify: restart haproxy
+- name: Add HAproxy dropin
+  when: auth_ldap_have_tls | bool
+  become: true
+  ansible.builtin.template:
+    src: haproxy-dropin.conf.j2
+    dest: /etc/haproxy/conf.d/30-ldap.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: restart haproxy
 
-  - name: Enable Retro Changelog Plugin
-    ldap_attrs:
-      dn: "cn=Retro Changelog Plugin,cn=plugins,cn=config"
-      server_uri: "{{ auth_ldap_ansible_url }}"
-      bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd }}"
-      state: exact
-      attributes:
-        nsslapd-pluginEnabled: 'on'
-        nsslapd-attribute: 'nsuniqueid:targetUniqueId'
-        nsslapd-exclude-suffix: 'cn=config'
-    notify: restart dirsrv
+- name: Enable Retro Changelog Plugin
+  community.general.ldap_attrs:
+    dn: "cn=Retro Changelog Plugin,cn=plugins,cn=config"
+    server_uri: "{{ auth_ldap_ansible_url }}"
+    bind_dn: "cn=Directory Manager"
+    bind_pw: "{{ auth_ldap_admin_pwd }}"
+    state: exact
+    attributes:
+      nsslapd-pluginEnabled: 'on'
+      nsslapd-attribute: 'nsuniqueid:targetUniqueId'
+      nsslapd-exclude-suffix: 'cn=config'
+  notify: restart dirsrv
 
-  - name: Enable or disable Memberof Plugin
-    ldap_attrs:
-      dn: "cn=MemberOf Plugin,cn=plugins,cn=config"
-      server_uri: "{{ auth_ldap_ansible_url }}"
-      bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd }}"
-      state: exact
-      attributes:
-        nsslapd-pluginEnabled: "{% if auth_ldap_use_memberof_plugin %}on{% else %}off{% endif %}"
-    notify: restart dirsrv
+- name: Enable or disable Memberof Plugin
+  community.general.ldap_attrs:
+    dn: "cn=MemberOf Plugin,cn=plugins,cn=config"
+    server_uri: "{{ auth_ldap_ansible_url }}"
+    bind_dn: "cn=Directory Manager"
+    bind_pw: "{{ auth_ldap_admin_pwd }}"
+    state: exact
+    attributes:
+      nsslapd-pluginEnabled: "{% if auth_ldap_use_memberof_plugin %}on{% else %}off{% endif %}"
+  notify: restart dirsrv
 
-  # If we changed the haproxy config, this will restart the server and activate it
-  - meta: flush_handlers
+# If we changed the haproxy config, this will restart the server and activate it
+- name: Flush handlers
+  meta: flush_handlers

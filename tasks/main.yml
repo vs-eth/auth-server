@@ -1,49 +1,54 @@
 ---
-  - name: Install software
-    become: True
-    apt:
-      state: present
-      update_cache: yes
-      cache_valid_time: 1800
-      name:
-        - python3-ldap
-        - sasl2-bin
-        - libsasl2-modules-gssapi-mit
-        - 389-ds-base
-        - libnss3-tools
-        - libldap-common
-        - python3-pexpect
-    tags:
-      - ldap
+- name: Install software
+  become: true
+  ansible.builtin.apt:
+    state: present
+    update_cache: true
+    cache_valid_time: 1800
+    name:
+      - python3-ldap
+      - sasl2-bin
+      - libsasl2-modules-gssapi-mit
+      - 389-ds-base
+      - libnss3-tools
+      - libldap-common
+      - python3-pexpect
+  tags:
+    - ldap
 
-  - import_tasks: variable-initialisation.yml
-    tags:
-      - ldap
+- name: Initialise variables
+  ansible.builtin.import_tasks: variable-initialisation.yml
+  tags:
+    - ldap
 
-  - import_tasks: 389-setup.yml
-    tags:
-      - ldap
+- name: Setup dirsrv instance
+  ansible.builtin.import_tasks: 389-setup.yml
+  tags:
+    - ldap
 
-  - import_tasks: 389-replication.yml
-    tags:
-      - ldap
+- name: Setup replication
+  ansible.builtin.import_tasks: 389-replication.yml
+  tags:
+    - ldap
 
-  - import_tasks: 389-acl.yml
-    tags:
-      - ldap
+- name: Setup ACLs
+  ansible.builtin.import_tasks: 389-acl.yml
+  tags:
+    - ldap
 
-  - name: Configure LDAP users
-    include_tasks: content.yml
-    with_items:
-      - "{{ auth_ldap_users }}"
-    tags:
-      - ldap
+- name: Configure LDAP users
+  ansible.builtin.include_tasks: content.yml
+  with_items:
+    - "{{ auth_ldap_users }}"
+  tags:
+    - ldap
 
-  - name: Apply additional indexes
-    include_tasks: 389-index.yml
-    tags:
-      - ldap
-    with_items: "{{ auth_ldap_eq_indexes }}"
-    when: auth_ldap_eq_indexes is defined
+- name: Apply additional indexes
+  ansible.builtin.include_tasks: 389-index.yml
+  tags:
+    - ldap
+  with_items: "{{ auth_ldap_eq_indexes }}"
+  when: auth_ldap_eq_indexes is defined
 
-  - meta: flush_handlers
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers

@@ -1,70 +1,70 @@
 ---
-  - name: Restrict anonymous bind to RootDN
-    ldap_attrs:
-      dn: "cn=config"
-      server_uri: "{{ auth_ldap_ansible_url }}"
-      bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd }}"
-      state: exact
-      attributes:
-        nsslapd-allow-anonymous-access: 'rootdse'
-    notify: restart dirsrv
+- name: Restrict anonymous bind to RootDN
+  community.general.ldap_attrs:
+    dn: "cn=config"
+    server_uri: "{{ auth_ldap_ansible_url }}"
+    bind_dn: "cn=Directory Manager"
+    bind_pw: "{{ auth_ldap_admin_pwd }}"
+    state: exact
+    attributes:
+      nsslapd-allow-anonymous-access: 'rootdse'
+  notify: restart dirsrv
 
-  - name: Create LDAP system users
-    run_once: true
-    ldap_entry:
-      dn: "cn={{ item.name }},ou=TechnicalUsers,{{ auth_ldap_domain_ldap }}"
-      server_uri: "{{ auth_ldap_ansible_url }}"
-      objectClass: "{{ auth_ldap_user_objectclasses }}"
-      bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd }}"
-      state: present
-      attributes:
-        uid: "{{ item.id }}"
-        uidNumber: "{{ item.uid }}"
-        gidNumber: "{{ item.gid }}"
-        userPassword: "{{ item.initialPassword }}"
-        homeDirectory: "/dev/null"
-        sn: "{{ item.name }}"
-        givenName: "Serviceaccount"
-        mail: "root@{{ auth_ldap_domain }}"
-    with_items:
-      - "{{ auth_ldap_system_users }}"
-    no_log: True
+- name: Create LDAP system users
+  run_once: true
+  community.general.ldap_entry:
+    dn: "cn={{ item.name }},ou=TechnicalUsers,{{ auth_ldap_domain_ldap }}"
+    server_uri: "{{ auth_ldap_ansible_url }}"
+    objectClass: "{{ auth_ldap_user_objectclasses }}"
+    bind_dn: "cn=Directory Manager"
+    bind_pw: "{{ auth_ldap_admin_pwd }}"
+    state: present
+    attributes:
+      uid: "{{ item.id }}"
+      uidNumber: "{{ item.uid }}"
+      gidNumber: "{{ item.gid }}"
+      userPassword: "{{ item.initialPassword }}"
+      homeDirectory: "/dev/null"
+      sn: "{{ item.name }}"
+      givenName: "Serviceaccount"
+      mail: "root@{{ auth_ldap_domain }}"
+  with_items:
+    - "{{ auth_ldap_system_users }}"
+  no_log: true
 
-  - name: Create LDAP reader group
-    run_once: true
-    ldap_entry:
-      dn: "cn=sys_ldap_readers,ou=Groups,{{ auth_ldap_domain_ldap }}"
-      objectClass: groupOfNames
-      bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd }}"
-      server_uri: "{{ auth_ldap_ansible_url }}"
-      attributes:
-        member: "{{ item }}"
-    with_items: "{{ auth_ldap_allow_read|first }}"
+- name: Create LDAP reader group
+  run_once: true
+  community.general.ldap_entry:
+    dn: "cn=sys_ldap_readers,ou=Groups,{{ auth_ldap_domain_ldap }}"
+    objectClass: groupOfNames
+    bind_dn: "cn=Directory Manager"
+    bind_pw: "{{ auth_ldap_admin_pwd }}"
+    server_uri: "{{ auth_ldap_ansible_url }}"
+    attributes:
+      member: "{{ item }}"
+  with_items: "{{ auth_ldap_allow_read | first }}"
 
-  - name: Add LDAP reader group members
-    run_once: true
-    ldap_attrs:
-      dn: "cn=sys_ldap_readers,ou=Groups,{{ auth_ldap_domain_ldap }}"
-      bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd }}"
-      server_uri: "{{ auth_ldap_ansible_url }}"
-      state: exact
-      attributes:
-        member: "{{ auth_ldap_allow_read }}"
+- name: Add LDAP reader group members
+  run_once: true
+  community.general.ldap_attrs:
+    dn: "cn=sys_ldap_readers,ou=Groups,{{ auth_ldap_domain_ldap }}"
+    bind_dn: "cn=Directory Manager"
+    bind_pw: "{{ auth_ldap_admin_pwd }}"
+    server_uri: "{{ auth_ldap_ansible_url }}"
+    state: exact
+    attributes:
+      member: "{{ auth_ldap_allow_read }}"
 
-  - name: Configure LDAP ACLs
-    ldap_attrs:
-      dn: "{{ item.target }}"
-      bind_dn: "cn=Directory Manager"
-      bind_pw: '{{ auth_ldap_admin_pwd }}'
-      server_uri: "{{ auth_ldap_ansible_url }}"
-      attributes:
-        aci: "{{ item.acls }}"
-      state: exact
-    when: item.target != "cn=Kerberos,{{ auth_ldap_domain_ldap }}"
-    with_items: "{{ auth_ldap_permissions }}"
-    tags:
-      - skip_ansible_lint
+- name: Configure LDAP ACLs
+  ldap_attrs:
+    dn: "{{ item.target }}"
+    bind_dn: "cn=Directory Manager"
+    bind_pw: '{{ auth_ldap_admin_pwd }}'
+    server_uri: "{{ auth_ldap_ansible_url }}"
+    attributes:
+      aci: "{{ item.acls }}"
+    state: exact
+  when: item.target != "cn=Kerberos,{{ auth_ldap_domain_ldap }}"
+  with_items: "{{ auth_ldap_permissions }}"
+  tags:
+    - skip_ansible_lint

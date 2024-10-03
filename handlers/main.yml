@@ -1,14 +1,14 @@
 ---
   - name: restart dirsrv
-    become: True
+    become: true
     service:
       name: "dirsrv@{{ auth_ldap_shortname }}"
       state: restarted
-      enabled: yes
+      enabled: true
 
   - name: restart haproxy
-    become: True
+    become: true
     service:
       name: haproxy
       state: restarted
-      enabled: yes
+      enabled: true

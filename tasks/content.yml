@@ -1,20 +1,20 @@
 ---
-  - name: Create LDAP user
-    run_once: true
-    ldap_entry:
-      dn: "uid={{ item.id }},ou=Users,{{ auth_ldap_domain_ldap }}"
-      server_uri: "{{ auth_ldap_ansible_url }}"
-      objectClass: "{{ auth_ldap_user_objectclasses }}"
-      bind_dn: "cn=Directory Manager"
-      bind_pw: "{{ auth_ldap_admin_pwd }}"
-      state: present
-      attributes:
-        uid: "{{ item.id }}"
-        uidNumber: "{{ item.uid }}"
-        gidNumber: "{{ item.gid }}"
-        homeDirectory: "/home/{{ item.id }}"
-        sn: "{{ item.sn }}"
-        givenName: "{{ item.givenName }}"
-        mail: "{{ item.mail }}"
-        cn: "{{ item.name }}"
-    register: userchanged
+- name: Create LDAP user
+  run_once: true
+  community.general.ldap_entry:
+    dn: "uid={{ item.id }},ou=Users,{{ auth_ldap_domain_ldap }}"
+    server_uri: "{{ auth_ldap_ansible_url }}"
+    objectClass: "{{ auth_ldap_user_objectclasses }}"
+    bind_dn: "cn=Directory Manager"
+    bind_pw: "{{ auth_ldap_admin_pwd }}"
+    state: present
+    attributes:
+      uid: "{{ item.id }}"
+      uidNumber: "{{ item.uid }}"
+      gidNumber: "{{ item.gid }}"
+      homeDirectory: "/home/{{ item.id }}"
+      sn: "{{ item.sn }}"
+      givenName: "{{ item.givenName }}"
+      mail: "{{ item.mail }}"
+      cn: "{{ item.name }}"
+  register: userchanged
