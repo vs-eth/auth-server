@@ -34,6 +34,13 @@
     tags:
       - ldap
 
+  - name: Apply additional ldif
+    include_tasks: 389-schema.yml
+    tags:
+      - ldap
+    with_items: "{{ auth_ldap_additional_schema }}"
+    when: auth_ldap_additional_schema is defined
+
   - import_tasks: 389-acl.yml
     tags:
       - ldap
@@ -49,13 +56,6 @@
     tags:
       - ldap
       - kerberos
-
-  - name: Apply additional ldif
-    include_tasks: 389-schema.yml
-    tags:
-      - ldap
-    with_items: "{{ auth_ldap_additional_schema }}"
-    when: auth_ldap_additional_schema is defined
 
   - name: Apply additional indexes
     include_tasks: 389-index.yml
